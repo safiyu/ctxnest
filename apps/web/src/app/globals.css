@@ -3,22 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --bg-primary: #FFFFFF;
-  --bg-secondary: #FAFAFA;
-  --bg-tertiary: #F5F5F5;
-  --text-primary: #1A1A1A;
-  --text-secondary: #666666;
-  --border: #E5E5E5;
+  --bg-primary: #F1F5F9;
+  --bg-secondary: #E2E8F0;
+  --bg-tertiary: #CBD5E1;
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --border: #E2E8F0;
 }
 
 .dark {
-  --bg-primary: #1A1A1A;
-  --bg-secondary: #141414;
-  --bg-tertiary: #252525;
-  --text-primary: #E5E5E5;
-  --text-secondary: #999999;
-  --border: #333333;
+  --bg-primary: #0F172A;
+  --bg-secondary: #020617;
+  --bg-tertiary: #1E293B;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --border: #334155;
 }
+
+/* Light theme specific adjustments for icons/emojis */
+html:not(.dark) .dark-icon {
+  filter: brightness(0.7) saturate(1.2) contrast(1.1);
+}
+
+
 
 body {
   background-color: var(--bg-primary);

@@ -31,6 +31,7 @@ interface FileListProps {
   selectedProject: Project | null;
   onSync: () => Promise<void>;
   onUpdateRemote: (url: string) => Promise<void>;
+  onDeleteFolder?: () => Promise<void>;
 }
 
 export function FileList({
@@ -43,17 +44,29 @@ export function FileList({
   selectedProject,
   onSync,
   onUpdateRemote,
+  onDeleteFolder,
 }: FileListProps) {
   const projectPath = selectedProject?.path ?? null;
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
-    if (selectedFolder && projectPath) {
-      const normalizedProjectPath = projectPath.endsWith("/")
-        ? projectPath
-        : projectPath + "/";
-      const folderPrefix = normalizedProjectPath + selectedFolder + "/";
-      result = result.filter((f) => f.path.startsWith(folderPrefix));
+    if (selectedFolder) {
+      if (projectPath) {
+        const normalizedProjectPath = projectPath.endsWith("/")
+          ? projectPath
+          : projectPath + "/";
+        const folderPrefix = normalizedProjectPath + selectedFolder + "/";
+        result = result.filter((f) => f.path.startsWith(folderPrefix));
+      } else {
+        // Knowledge base files — check if they are in the folder
+        // Paths for KB files are usually absolute: /.../knowledge/folder/file.md
+        // We can check if the folder is part of the path
+        result = result.filter((f) => {
+          const parts = f.path.split("/knowledge/");
+          if (parts.length < 2) return false;
+          return parts[1].startsWith(selectedFolder + "/");
+        });
+      }
     }
 
     switch (sortBy) {
@@ -114,10 +127,27 @@ export function FileList({
             />
           ))
         ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
-            <span className="text-4xl opacity-30">📑</span>
-            <p className="text-sm font-medium">No files yet</p>
-            <p className="text-xs text-gray-500">Files in this folder will appear here</p>
+          <div className="flex flex-col items-center justify-center py-16 text-[#475569] dark:text-[#94A3B8] gap-4">
+            <span className="text-6xl opacity-30 dark-icon">📂</span>
+            <div className="text-center px-6">
+              <p className="text-lg font-bold text-[var(--text-primary)]">Folder is empty</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-2">
+                This folder doesn't contain any indexed context files.
+              </p>
+            </div>
+            
+            {selectedFolder && !selectedProject && onDeleteFolder && (
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <div className="h-px w-16 bg-[var(--border)]" />
+                <button
+                  onClick={onDeleteFolder}
+                  className="px-6 py-2.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-lg text-sm font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-all btn-press shadow-sm"
+                >
+                  DELETE THIS FOLDER
+                </button>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Permanent Action</p>
+              </div>
+            )}
           </div>
         )}
       </div>

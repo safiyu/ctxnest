@@ -26,33 +26,22 @@ function formatTimeAgo(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-function getFileTypeInfo(title: string): { icon: string; color: string } {
-  const ext = title.split(".").pop()?.toLowerCase() || "";
-  switch (ext) {
-    case "md":
-    case "mdx":
-      return { icon: "📝", color: "text-blue-400" };
-    case "ts":
-    case "tsx":
-      return { icon: "🔷", color: "text-blue-500" };
-    case "js":
-    case "jsx":
-      return { icon: "🟡", color: "text-yellow-400" };
-    case "json":
-      return { icon: "📋", color: "text-green-400" };
-    case "yml":
-    case "yaml":
-      return { icon: "⚙️", color: "text-purple-400" };
-    case "css":
-    case "scss":
-      return { icon: "🎨", color: "text-pink-400" };
-    default:
-      return { icon: "📄", color: "text-gray-400" };
-  }
-}
+const FileIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2.5" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
 
 export function FileItem({ title, updatedAt, active, onClick }: FileItemProps) {
-  const fileInfo = getFileTypeInfo(title);
 
   return (
     <div
@@ -67,12 +56,12 @@ export function FileItem({ title, updatedAt, active, onClick }: FileItemProps) {
       `}
     >
       <div className="flex items-start gap-3">
-        <span className={`text-base mt-0.5 ${fileInfo.color}`}>{fileInfo.icon}</span>
+        <FileIcon className="w-4 h-4 mt-1 text-amber-accent shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold truncate text-gray-900 dark:text-gray-100">
+          <div className="text-sm font-semibold truncate text-[#0F172A] dark:text-[#F8F9FA]">
             {title}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-[#475569] dark:text-[#94A3B8] mt-1">
             {formatTimeAgo(updatedAt)}
           </div>
         </div>

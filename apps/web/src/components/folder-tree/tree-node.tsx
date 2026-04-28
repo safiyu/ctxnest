@@ -4,7 +4,7 @@ import { useState, ReactNode } from "react";
 
 interface TreeNodeProps {
   label: string;
-  icon?: string;
+  icon?: ReactNode;
   active?: boolean;
   initialExpanded?: boolean;
   children?: ReactNode;
@@ -39,7 +39,7 @@ export function TreeNode({
           ${
             active
               ? "bg-amber-accent/10 border-l-[3px] border-amber-accent text-amber-accent font-semibold shadow-[inset_0_0_12px_rgba(212,144,58,0.06)]"
-              : "text-gray-600 dark:text-gray-300 border-l-[3px] border-transparent hover:bg-amber-accent/5 hover:border-amber-accent/40 hover:text-amber-accent/80"
+              : "text-[#334155] dark:text-[#94A3B8] border-l-[3px] border-transparent hover:bg-amber-accent/5 hover:border-amber-accent/40 hover:text-amber-accent/80"
           }
         `}
       >
@@ -47,7 +47,7 @@ export function TreeNode({
           {hasChildren && (
             <span className={`text-xs inline-block transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}>▶</span>
           )}
-          {icon && <span>{icon}</span>}
+          {icon && <span className="dark-icon">{icon}</span>}
           <span className="truncate">{label}</span>
         </div>
       </div>

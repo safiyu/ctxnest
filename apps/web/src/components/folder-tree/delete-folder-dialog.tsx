@@ -1,20 +1,22 @@
 "use client";
 
-interface DeleteConfirmDialogProps {
+import { Modal } from "../ui/modal";
+
+interface DeleteFolderDialogProps {
   open: boolean;
-  title: string;
+  folderName: string;
   onClose: () => void;
   onConfirm: () => void;
   loading: boolean;
 }
 
-export function DeleteConfirmDialog({
+export function DeleteFolderDialog({
   open,
-  title,
+  folderName,
   onClose,
   onConfirm,
   loading,
-}: DeleteConfirmDialogProps) {
+}: DeleteFolderDialogProps) {
   if (!open) return null;
 
   return (
@@ -23,12 +25,12 @@ export function DeleteConfirmDialog({
         <div className="p-6">
           <div className="flex items-center gap-3 text-red-500 mb-4">
             <span className="text-2xl">⚠️</span>
-            <h3 className="text-lg font-bold">DELETE FILE</h3>
+            <h3 className="text-lg font-bold">DELETE FOLDER</h3>
           </div>
 
           <p className="text-sm text-[var(--text-secondary)] mb-6">
-            Are you sure you want to delete <span className="font-bold text-[var(--text-primary)]">"{title}"</span>?
-            This action cannot be undone.
+            Are you sure you want to delete the folder <span className="font-bold text-[var(--text-primary)]">"{folderName}"</span>?
+            This will permanently remove the directory from your disk.
           </p>
 
           <div className="flex justify-end gap-3">
@@ -44,7 +46,7 @@ export function DeleteConfirmDialog({
               disabled={loading}
               className="px-6 py-2 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 transition-colors disabled:opacity-50"
             >
-              {loading ? "DELETING..." : "DELETE PERMANENTLY"}
+              {loading ? "DELETING..." : "DELETE FOLDER"}
             </button>
           </div>
         </div>

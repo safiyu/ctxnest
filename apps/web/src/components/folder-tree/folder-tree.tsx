@@ -25,12 +25,29 @@ interface FolderTreeProps {
   selectedFolder: string | null;
   projectFolders: string[];
   knowledgeFolders: string[];
+  projectBasePath: string;
+  knowledgeBasePath: string;
   onSelectProject: (projectId: number) => void;
   onSelectKnowledge: () => void;
   onSelectFolder: (folderPath: string | null) => void;
   onSelectFile: (fileId: number) => void;
   onCreateFolder: (projectId: number) => void;
 }
+
+const FileIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
 
 function FolderNodes({
   node,
@@ -65,7 +82,7 @@ function FolderNodes({
         <TreeNode
           key={file.id}
           label={file.title}
-          icon="📄"
+          icon={<FileIcon className="w-3.5 h-3.5 text-amber-accent" />}
           onClick={() => onSelectFile(file.id)}
         />
       ))}
@@ -82,33 +99,27 @@ export function FolderTree({
   selectedFolder,
   projectFolders,
   knowledgeFolders,
+  projectBasePath,
+  knowledgeBasePath,
   onSelectProject,
   onSelectKnowledge,
   onSelectFolder,
   onSelectFile,
   onCreateFolder,
 }: FolderTreeProps) {
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
-
-  // Tree for the selected project
+  // Tree for Projects
   const projectFolderTree = useMemo(() => {
-    if (!selectedProject) return null;
+    if (!selectedProjectId) return null;
+    const selectedProject = projects.find((p) => p.id === selectedProjectId);
+    if (!selectedProject || !selectedProject.path) return null;
     return buildFolderTree(projectFiles, selectedProject.path, projectFolders);
-  }, [projectFiles, selectedProject, projectFolders]);
+  }, [selectedProjectId, projectFiles, projectFolders, projects]);
 
-  // Tree for Knowledge Base — always built, independent of selectedSection
+  // Tree for Knowledge Base
   const knowledgeFolderTree = useMemo(() => {
     if (knowledgeFolders.length === 0 && knowledgeFiles.length === 0) return null;
-    if (knowledgeFiles.length > 0) {
-      const firstPath = knowledgeFiles[0].path;
-      const idx = firstPath.indexOf("/knowledge/");
-      if (idx !== -1) {
-        const prefix = firstPath.substring(0, idx + 11);
-        return buildFolderTree(knowledgeFiles, prefix, knowledgeFolders);
-      }
-    }
-    return buildFolderTree([], "", knowledgeFolders);
-  }, [knowledgeFiles, knowledgeFolders]);
+    return buildFolderTree(knowledgeFiles, knowledgeBasePath, knowledgeFolders);
+  }, [knowledgeFiles, knowledgeFolders, knowledgeBasePath]);
 
   return (
     <div className="p-4 space-y-6">

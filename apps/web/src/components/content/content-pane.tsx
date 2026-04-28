@@ -7,7 +7,7 @@ import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
 interface File {
   id: number;
-  project_id: number;
+  project_id: number | null;
   title: string;
   content: string;
   storage_type: "db" | "git";
@@ -102,6 +102,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
     setDeleting(true);
     try {
       await onDelete(file.id);
+      setFile(null);
       setDeleteDialogOpen(false);
     } finally {
       setDeleting(false);
@@ -110,11 +111,11 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
 
   if (!fileId) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 animate-fade-in">
-        <span className="text-5xl opacity-30">📂</span>
+      <div className="h-full flex flex-col items-center justify-center text-[#475569] dark:text-[#94A3B8] gap-3 animate-fade-in">
+        <span className="text-6xl opacity-40 dark-icon">📂</span>
         <div className="text-center">
-          <p className="text-base font-medium">Select a file to preview</p>
-          <p className="text-sm text-gray-500 mt-1">Choose a file from the list on the left</p>
+          <p className="text-lg font-bold text-[#0F172A] dark:text-[#F1F5F9]">Select a file to preview</p>
+          <p className="text-sm font-medium text-[#475569] dark:text-[#94A3B8] mt-2">Choose a file from the list on the left</p>
         </div>
       </div>
     );
@@ -123,7 +124,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
   if (loading) {
     return (
       <div className="h-full flex flex-col animate-fade-in">
-        <div className="border-b border-gray-200 dark:border-[#333333] px-6 py-4">
+        <div className="border-b border-[var(--border)] px-6 py-4">
           <div className="skeleton h-6 w-48 mb-2" />
           <div className="skeleton h-4 w-32" />
         </div>
@@ -140,11 +141,11 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
 
   if (!file) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 animate-fade-in">
-        <span className="text-5xl opacity-30">🔍</span>
+      <div className="h-full flex flex-col items-center justify-center text-[#475569] dark:text-[#94A3B8] gap-3 animate-fade-in">
+        <span className="text-6xl opacity-40 dark-icon">🔍</span>
         <div className="text-center">
-          <p className="text-base font-medium">File not found</p>
-          <p className="text-sm text-gray-500 mt-1">This file may have been moved or deleted</p>
+          <p className="text-lg font-bold text-[#0F172A] dark:text-[#F1F5F9]">File not found</p>
+          <p className="text-sm font-medium text-[#475569] dark:text-[#94A3B8] mt-2">This file may have been moved or deleted</p>
         </div>
       </div>
     );
@@ -179,12 +180,14 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
                 >
                   {viewSource ? "View" : "Source"}
                 </button>
-                <button
-                  onClick={() => setDeleteDialogOpen(true)}
-                  className="px-3 py-1.5 text-sm bg-red-900/30 text-red-400 border border-red-500/20 rounded hover:bg-red-900/50 transition-colors btn-press"
-                >
-                  Delete
-                </button>
+                {!file.project_id && (
+                  <button
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="px-3 py-1.5 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors btn-press font-bold"
+                  >
+                    Delete
+                  </button>
+                )}
               </>
             )}
 

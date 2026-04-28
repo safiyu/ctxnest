@@ -10,6 +10,7 @@ import { SearchDialog } from "@/components/search/search-dialog";
 import { AboutDialog } from "@/components/about/about-dialog";
 import { NewFileDialog } from "@/components/content/new-file-dialog";
 import { NewFolderDialog } from "@/components/folder-tree/new-folder-dialog";
+import { DeleteFolderDialog } from "@/components/folder-tree/delete-folder-dialog";
 import { useProjects } from "@/hooks/use-projects";
 import { useFiles } from "@/hooks/use-files";
 import { useFolders } from "@/hooks/use-folders";
@@ -22,6 +23,8 @@ export default function HomePage() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [deleteFolderConfirmOpen, setDeleteFolderConfirmOpen] = useState(false);
+  const [deletingFolder, setDeletingFolder] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [targetProjectId, setTargetProjectId] = useState<number | null>(null);
   const [selectedSection, setSelectedSection] = useState<"projects" | "knowledge" | null>(null);
@@ -48,9 +51,9 @@ export default function HomePage() {
   // Always fetch knowledge base files and folders
   const { files: allFiles, refresh: refreshAllFiles } = useFiles({});
   const knowledgeFiles = allFiles.filter((f) => !f.project_id);
-  const { folders: knowledgeFolders } = useFolders(null, folderRefreshKey);
+  const { folders: knowledgeFolders, basePath: knowledgeBasePath } = useFolders(null, folderRefreshKey);
   // Fetch project-specific folders when a project is selected
-  const { folders: projectFolders } = useFolders(
+  const { folders: projectFolders, basePath: projectBasePath } = useFolders(
     selectedSection === "projects" ? selectedProjectId : null,
     folderRefreshKey
   );
@@ -170,6 +173,7 @@ export default function HomePage() {
       if (response.ok) {
         refreshFiles();
         refreshAllFiles();
+        setFolderRefreshKey((k) => k + 1);
         setSelectedFileId(null);
       }
     } catch (error) {
@@ -205,6 +209,34 @@ export default function HomePage() {
     }
   };
 
+  const handleDeleteFolder = () => {
+    if (selectedFolder) {
+      setDeleteFolderConfirmOpen(true);
+    }
+  };
+
+  const onConfirmDeleteFolder = async () => {
+    if (!selectedFolder) return;
+    setDeletingFolder(true);
+    try {
+      const response = await fetch(`/api/folders?name=${encodeURIComponent(selectedFolder)}&projectId=${selectedProjectId || ""}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setSelectedFolder(null);
+        setFolderRefreshKey((k) => k + 1);
+        setDeleteFolderConfirmOpen(false);
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to delete folder");
+      }
+    } catch (error) {
+      console.error("Failed to delete folder:", error);
+    } finally {
+      setDeletingFolder(false);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -236,6 +268,8 @@ export default function HomePage() {
             selectedFolder={selectedFolder}
             projectFolders={projectFolders || []}
             knowledgeFolders={knowledgeFolders || []}
+            projectBasePath={projectBasePath}
+            knowledgeBasePath={knowledgeBasePath}
             onSelectProject={handleSelectProject}
             onSelectKnowledge={handleSelectKnowledge}
             onSelectFolder={handleSelectFolder}
@@ -257,6 +291,7 @@ export default function HomePage() {
             selectedProject={selectedProject ?? null}
             onSync={handleSync}
             onUpdateRemote={handleUpdateRemote}
+            onDeleteFolder={handleDeleteFolder}
           />
         }
         right={<ContentPane fileId={selectedFileId} onDelete={handleDeleteFile} />}
@@ -285,6 +320,14 @@ export default function HomePage() {
         open={newFolderOpen}
         onClose={() => setNewFolderOpen(false)}
         onCreate={handleCreateFolder}
+      />
+
+      <DeleteFolderDialog
+        open={deleteFolderConfirmOpen}
+        folderName={selectedFolder || ""}
+        onClose={() => setDeleteFolderConfirmOpen(false)}
+        onConfirm={onConfirmDeleteFolder}
+        loading={deletingFolder}
       />
     </div>
   );

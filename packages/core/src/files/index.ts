@@ -243,10 +243,27 @@ export function updateFile(id: number, content: string): FileRecord {
 }
 
 /**
- * Delete a file (soft delete from DB)
+ * Delete a file (DB and disk)
  */
 export function deleteFile(id: number): void {
   const db = getDatabase();
+
+  // Get file info first
+  const file = db.prepare("SELECT path, storage_type FROM files WHERE id = ?").get(id) as { path: string, storage_type: string } | undefined;
+  
+  if (file) {
+    // Delete from disk if it's a local file
+    // We only delete 'local' files (Knowledge Base / CtxNest managed)
+    // For 'reference' files (Project Root), we also delete them from the disk
+    try {
+      const { unlinkSync, existsSync } = require("node:fs");
+      if (existsSync(file.path)) {
+        unlinkSync(file.path);
+      }
+    } catch (e) {
+      console.error("Failed to delete file from disk:", e);
+    }
+  }
 
   // Delete from FTS5 index
   const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
@@ -264,6 +281,15 @@ export function createFolder(projectPath: string, folderName: string): string {
   const fullPath = join(projectPath, folderName);
   mkdirSync(fullPath, { recursive: true });
   return fullPath;
+}
+
+/**
+ * Delete a folder (recursive)
+ */
+export function deleteFolder(projectPath: string, folderName: string): void {
+  const { rmSync } = require("node:fs");
+  const fullPath = join(projectPath, folderName);
+  rmSync(fullPath, { recursive: true, force: true });
 }
 
 /**

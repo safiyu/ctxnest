@@ -19,11 +19,11 @@ export function TopBar({ onSearch, onNewFile, onAbout }: TopBarProps) {
   }, []);
 
   return (
-    <header className="h-[88px] bg-gradient-to-r from-white via-amber-accent-light/30 to-white dark:from-[#1A1A1A] dark:via-[#1f1b15] dark:to-[#1A1A1A] flex items-center justify-between px-5 border-b border-amber-accent/10 overflow-visible">
+    <header className="h-[88px] bg-gradient-to-r from-[var(--bg-secondary)] via-[var(--bg-tertiary)] to-[var(--bg-secondary)] flex items-center justify-between px-5 border-b border-[var(--border)] overflow-visible shadow-sm">
       <div className="flex items-center">
         <AnimatedLogo size="sm" />
         <span
-          className="-ml-4 font-extrabold text-2xl tracking-[4px] font-[family-name:var(--font-title)] text-transparent bg-clip-text bg-gradient-to-r from-amber-accent via-yellow-300 to-amber-accent drop-shadow-[0_0_12px_rgba(212,144,58,0.4)]"
+          className="-ml-4 font-extrabold text-2xl tracking-[4px] font-[family-name:var(--font-title)] text-amber-accent drop-shadow-[0_0_15px_rgba(212,144,58,0.6)]"
         >
           CTXNEST
         </span>
