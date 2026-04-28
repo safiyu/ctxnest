@@ -51,7 +51,7 @@ export interface UserRecord {
 }
 
 export interface FileFilters {
-  project_id?: number;
+  project_id?: number | null;
   tag?: string;
   favorite?: boolean;
   folder?: string;

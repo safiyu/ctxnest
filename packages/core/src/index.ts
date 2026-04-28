@@ -5,6 +5,6 @@ export {
   addTags, removeTags, setFavorite, search,
   registerProject, discoverFiles, listTags, listProjects,
 } from "./metadata/index.js";
-export { commitFile, getHistory, getDiff, restoreVersion, syncBackup } from "./git/index.js";
+export { commitFile, getHistory, getDiff, restoreVersion, syncBackup, getGlobalRemote, setGlobalRemote } from "./git/index.js";
 export { createFileWatcher, type WatcherEvent } from "./watcher/index.js";
 export type * from "./types.js";

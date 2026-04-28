@@ -3,11 +3,29 @@
  * Handles commit, history, diff, restore, and backup sync operations
  */
 
+import { createHash } from "node:crypto";
 import simpleGit, { SimpleGit, LogResult } from "simple-git";
-import { readFileSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
-import { join, relative, dirname } from "node:path";
+import { readFileSync, writeFileSync, copyFileSync, mkdirSync, existsSync, rmSync, readdirSync, statSync, unlinkSync } from "node:fs";
+import { join, relative, dirname, isAbsolute } from "node:path";
 import { getDatabase } from "../db/index.js";
 import type { ProjectRecord, FileRecord } from "../types.js";
+
+/**
+ * Ensure a directory is a git repository
+ * @param dir - Directory path
+ */
+export async function ensureGitRepo(dir: string): Promise<void> {
+  if (existsSync(join(dir, ".git"))) return;
+
+  const git: SimpleGit = simpleGit(dir);
+  try {
+    await git.init();
+    await git.addConfig("user.email", "ctxnest@local");
+    await git.addConfig("user.name", "CtxNest");
+  } catch (error) {
+    console.warn(`Failed to initialize git in ${dir}:`, error);
+  }
+}
 
 /**
  * Commit a file to git repository
@@ -20,6 +38,7 @@ export async function commitFile(
   filePath: string,
   message: string
 ): Promise<void> {
+  await ensureGitRepo(repoDir);
   const git: SimpleGit = simpleGit(repoDir);
   const relativePath = relative(repoDir, filePath);
 
@@ -101,6 +120,36 @@ export async function restoreVersion(
  * @param dataDir - Data directory path
  * @returns Array of copied file paths
  */
+export async function getGlobalRemote(dataDir: string): Promise<string | null> {
+  try {
+    const git = simpleGit(dataDir);
+    const remotes = await git.getRemotes(true);
+    const origin = remotes.find((r) => r.name === "origin");
+    return origin?.refs.fetch || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+export async function setGlobalRemote(dataDir: string, url: string): Promise<void> {
+  const git = simpleGit(dataDir);
+  try {
+    await git.status();
+  } catch (error) {
+    await git.init();
+    await git.addConfig("user.email", "ctxnest@local");
+    await git.addConfig("user.name", "CtxNest");
+  }
+
+  try {
+    await git.removeRemote("origin");
+  } catch (e) {}
+
+  if (url) {
+    await git.addRemote("origin", url);
+  }
+}
+
 export async function syncBackup(
   projectId: number,
   dataDir: string
@@ -128,7 +177,10 @@ export async function syncBackup(
   mkdirSync(backupDir, { recursive: true });
 
   // Initialize git if not already initialized
-  const git: SimpleGit = simpleGit(dataDir);
+  const git: SimpleGit = simpleGit(dataDir).env({
+    ...process.env,
+    GIT_TERMINAL_PROMPT: "0",
+  });
 
   try {
     await git.status();
@@ -140,51 +192,131 @@ export async function syncBackup(
   }
 
   // Handle remote pull if remote_url is configured
+  // Ensure remote is set up
   if (project.remote_url) {
     try {
-      const remotes = await git.getRemotes();
-      if (!remotes.find((r) => r.name === "origin")) {
-        await git.addRemote("origin", project.remote_url);
-      }
-      // Pull latest changes before syncing
-      await git.pull("origin", "main", { "--rebase": "true" }).catch(() => {
-        console.warn("Pull failed, proceeding with local changes");
-      });
-    } catch (error) {
-      console.warn("Git remote operations failed:", error);
-    }
-  }
-
-  // Copy each reference file to backup directory
-  for (const file of files) {
-    if (!file.path) {
-      continue;
-    }
-
-    const fileName = file.path.split("/").pop() || "unknown";
-    const backupPath = join(backupDir, fileName);
-
-    // Ensure subdirectory exists
-    mkdirSync(dirname(backupPath), { recursive: true });
-
-    // Copy file
-    copyFileSync(file.path, backupPath);
-    copiedPaths.push(backupPath);
-  }
-
-  // Git add and commit
-  if (copiedPaths.length > 0) {
-    const relativePaths = copiedPaths.map((p) => relative(dataDir, p));
-    await git.add(relativePaths);
-    await git.commit(`Backup sync for project: ${project.name}`, ["--no-verify"]);
-
-    // Push changes if remote_url is configured
-    if (project.remote_url) {
       try {
-        await git.push("origin", "main");
-      } catch (error) {
-        console.warn("Git push failed:", error);
+        await git.removeRemote("origin");
+      } catch (e) {}
+      await git.addRemote("origin", project.remote_url);
+
+      try {
+        await git.raw(["rev-parse", "HEAD"]);
+      } catch (e) {
+        await git.commit("Initial commit", ["--allow-empty"]);
       }
+    } catch (error) {
+      console.warn("Git remote setup failed:", error);
+    }
+  }
+
+  // --- STEP 1: COMMIT LOCAL TRUTH TO GIT ---
+  try {
+    rmSync(backupDir, { recursive: true, force: true });
+  } catch (e) {}
+  mkdirSync(backupDir, { recursive: true });
+
+  for (const file of files) {
+    if (!file.path || !project.path) continue;
+    // Keep relative folder structure!
+    const relativePath = relative(project.path, file.path);
+    // Safety check to ensure file is actually inside the project
+    if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
+      continue; 
+    }
+    const backupPath = join(backupDir, relativePath);
+
+    mkdirSync(dirname(backupPath), { recursive: true });
+    copyFileSync(file.path, backupPath);
+  }
+
+  const backupRelativeDir = relative(dataDir, backupDir);
+  await git.add(["-A", backupRelativeDir]);
+  
+  const status = await git.status();
+  if (status.staged.length > 0 || status.created.length > 0 || status.deleted.length > 0 || status.modified.length > 0) {
+    await git.commit(`Sync local changes for project: ${project.name}`, ["--no-verify"]);
+  }
+
+  // --- STEP 2: PULL REMOTE TRUTH (MERGE) ---
+  if (project.remote_url) {
+    try {
+      // Rebase=false to force a true merge commit if both ends changed files
+      await git.pull("origin", "main", { "--rebase": "false" }).catch((e) => {
+        console.warn("Pull/Merge failed, continuing anyway", e);
+      });
+    } catch (e) {}
+  }
+
+  // --- STEP 3: SYNC MERGED TRUTH BACK TO LOCAL WORKSPACE ---
+  // Recursively read the merged backup directory
+  function walkDir(dir: string, fileList: string[] = []) {
+    if (!existsSync(dir)) return fileList;
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (entry === ".git") continue;
+      const fullPath = join(dir, entry);
+      if (statSync(fullPath).isDirectory()) {
+        walkDir(fullPath, fileList);
+      } else {
+        fileList.push(fullPath);
+      }
+    }
+    return fileList;
+  }
+
+  const mergedFiles = walkDir(backupDir);
+  const existingDbPaths = new Set(files.map((f) => f.path));
+  const mergedBackupRelativePaths = new Set<string>();
+
+  for (const backupPath of mergedFiles) {
+    const relativePath = relative(backupDir, backupPath);
+    mergedBackupRelativePaths.add(relativePath);
+    
+    if (project.path) {
+      const localAbsolutePath = join(project.path, relativePath);
+      mkdirSync(dirname(localAbsolutePath), { recursive: true });
+      
+      // Copy remote changes back to local project
+      copyFileSync(backupPath, localAbsolutePath);
+      
+      // If this file wasn't in the DB, a collaborator added it! Insert it.
+      if (!existingDbPaths.has(localAbsolutePath)) {
+        const title = relativePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled";
+        const contentHash = createHash("md5").update(readFileSync(localAbsolutePath)).digest("hex");
+        db.prepare(
+          "INSERT INTO files (path, title, project_id, storage_type, content_hash) VALUES (?, ?, ?, ?, ?)"
+        ).run(localAbsolutePath, title, project.id, "reference", contentHash);
+        copiedPaths.push(localAbsolutePath);
+      }
+    }
+  }
+
+  // Handle Remote Deletions
+  for (const file of files) {
+    if (!file.path || !project.path) continue;
+    const relativePath = relative(project.path, file.path);
+    
+    // If a database file is NOT in the newly merged backupDir, it was deleted on GitHub!
+    if (!mergedBackupRelativePaths.has(relativePath)) {
+      try {
+        if (existsSync(file.path)) {
+          unlinkSync(file.path);
+        }
+      } catch (e) {}
+      // Remove from Database
+      db.prepare("DELETE FROM files WHERE id = ?").run(file.id);
+    }
+  }
+
+  // --- STEP 4: PUSH TO GITHUB ---
+  if (project.remote_url) {
+    try {
+      await git.branch(["-M", "main"]);
+      await git.push("origin", "main");
+    } catch (error: any) {
+      console.error("Git push failed:", error);
+      throw new Error(`Git push failed: ${error.message}`);
     }
   }
 

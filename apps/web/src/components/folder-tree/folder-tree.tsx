@@ -29,6 +29,7 @@ interface FolderTreeProps {
   knowledgeBasePath: string;
   onSelectProject: (projectId: number) => void;
   onSelectKnowledge: () => void;
+  onSelectKnowledgeFolder: (folderPath: string | null) => void;
   onSelectFolder: (folderPath: string | null) => void;
   onSelectFile: (fileId: number) => void;
   onCreateFolder: (projectId: number) => void;
@@ -103,6 +104,7 @@ export function FolderTree({
   knowledgeBasePath,
   onSelectProject,
   onSelectKnowledge,
+  onSelectKnowledgeFolder,
   onSelectFolder,
   onSelectFile,
   onCreateFolder,
@@ -166,7 +168,10 @@ export function FolderTree({
 
       <div>
         <div className="flex items-center justify-between mb-3 px-3">
-          <div className="text-amber-accent text-xs font-bold tracking-[1.5px]">
+          <div 
+            onClick={onSelectKnowledge}
+            className={`text-xs font-bold tracking-[1.5px] cursor-pointer hover:text-amber-accent-dark transition-colors ${selectedSection === "knowledge" && !selectedFolder ? "text-amber-accent" : "text-amber-accent/70"}`}
+          >
             KNOWLEDGE BASE
           </div>
           <button
@@ -176,22 +181,21 @@ export function FolderTree({
             + FOLDER
           </button>
         </div>
-        <TreeNode
-          label="All Knowledge"
-          icon="📚"
-          active={selectedSection === "knowledge"}
-          initialExpanded={selectedSection === "knowledge"}
-          onClick={onSelectKnowledge}
-        >
+        <div className="space-y-1">
           {knowledgeFolderTree ? (
             <FolderNodes
               node={knowledgeFolderTree}
               selectedFolder={selectedFolder}
-              onSelectFolder={onSelectFolder}
+              onSelectFolder={onSelectKnowledgeFolder}
               onSelectFile={onSelectFile}
             />
-          ) : undefined}
-        </TreeNode>
+          ) : (
+            <div className="flex flex-col items-center py-6 text-gray-400 gap-2">
+              <span className="text-3xl opacity-30">📂</span>
+              <p className="text-xs font-medium">No folders yet</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

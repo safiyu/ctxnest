@@ -48,7 +48,7 @@ server.tool(
     tags: z.array(z.string()).optional().describe("Optional array of tags"),
   },
   async ({ title, content, destination, project_id, folder, tags }) => {
-    const result = createFile({
+    const result = await createFile({
       title,
       content,
       destination,
@@ -87,7 +87,7 @@ server.tool(
     content: z.string().describe("New content"),
   },
   async ({ id, content }) => {
-    const result = updateFile(id, content);
+    const result = await updateFile(id, content, dataDir);
     return {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };

@@ -62,8 +62,19 @@ export function buildFolderTree(
     }
   }
 
+  // Prune nodes that don't have files or non-empty children
+  pruneEmptyNodes(root);
+
   sortTree(root);
   return root;
+}
+
+function pruneEmptyNodes(node: FolderTreeNode): boolean {
+  // Recursively prune children first
+  node.children = node.children.filter((child) => pruneEmptyNodes(child));
+
+  // A node is kept if it has files OR has at least one kept child
+  return node.files.length > 0 || node.children.length > 0;
 }
 
 function sortTree(node: FolderTreeNode): void {

@@ -41,11 +41,27 @@ export default function HomePage() {
     if (storedProjectId) setSelectedProjectId(Number(storedProjectId));
   }, []);
 
+  const [globalRemoteUrl, setGlobalRemoteUrl] = useState<string | null>(null);
+
+  const fetchGlobalRemote = useCallback(async () => {
+    try {
+      const res = await fetch("/api/git/remote");
+      if (res.ok) {
+        const data = await res.json();
+        setGlobalRemoteUrl(data.remote_url);
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    fetchGlobalRemote();
+  }, [fetchGlobalRemote]);
+
   const { projects, loading: projectsLoading } = useProjects();
 
   const { files, loading: filesLoading, refresh: refreshFiles } = useFiles({
     project_id:
-      selectedSection === "projects" ? selectedProjectId : undefined,
+      selectedSection === "projects" ? selectedProjectId : null,
   });
 
   // Always fetch knowledge base files and folders
@@ -92,6 +108,17 @@ export default function HomePage() {
     sessionStorage.removeItem("selectedProjectId");
   };
 
+  // Atomically switches to KB section AND selects a specific folder
+  // (avoids the race where handleSelectKnowledge clears selectedFolder)
+  const handleSelectKnowledgeFolder = (folderPath: string | null) => {
+    setSelectedSection("knowledge");
+    setSelectedProjectId(null);
+    setSelectedFileId(null);
+    setSelectedFolder(folderPath);
+    sessionStorage.setItem("selectedSection", "knowledge");
+    sessionStorage.removeItem("selectedProjectId");
+  };
+
   const handleSelectFile = (fileId: number) => {
     setSelectedFileId(fileId);
   };
@@ -103,32 +130,42 @@ export default function HomePage() {
 
   const handleSync = async () => {
     if (!selectedProjectId) return;
-    try {
-      const response = await fetch(`/api/projects/${selectedProjectId}/sync`, {
-        method: "POST",
-      });
-      if (response.ok) {
-        refreshFiles();
-      }
-    } catch (error) {
-      console.error("Sync failed:", error);
+    const response = await fetch(`/api/projects/${selectedProjectId}/sync`, {
+      method: "POST",
+    });
+    if (response.ok) {
+      refreshFiles();
+    } else {
+      const data = await response.json();
+      throw new Error(data.error || "Sync failed");
     }
   };
 
-  const handleUpdateRemote = async (url: string) => {
-    if (!selectedProjectId) return;
+  const handleSyncAll = async () => {
+    const response = await fetch("/api/git/sync-all", { method: "POST" });
+    if (response.ok || response.status === 207) {
+      refreshFiles();
+    } else {
+      const data = await response.json();
+      throw new Error(data.error || "Sync All failed");
+    }
+  };
+
+  const handleUpdateGlobalRemote = async (url: string) => {
     try {
-      const response = await fetch(`/api/projects/${selectedProjectId}`, {
-        method: "PATCH",
+      const response = await fetch("/api/git/remote", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ remote_url: url }),
       });
       if (response.ok) {
-        // Refresh projects to get the new remote_url
-        window.location.reload(); // Simple way to refresh for now
+        setGlobalRemoteUrl(url);
+      } else {
+        throw new Error("Failed to update global remote");
       }
     } catch (error) {
       console.error("Failed to update remote URL:", error);
+      throw error;
     }
   };
 
@@ -272,6 +309,7 @@ export default function HomePage() {
             knowledgeBasePath={knowledgeBasePath}
             onSelectProject={handleSelectProject}
             onSelectKnowledge={handleSelectKnowledge}
+            onSelectKnowledgeFolder={handleSelectKnowledgeFolder}
             onSelectFolder={handleSelectFolder}
             onSelectFile={handleSelectFile}
             onCreateFolder={(id) => {
@@ -289,8 +327,11 @@ export default function HomePage() {
             onSortChange={setSortBy}
             selectedFolder={selectedFolder}
             selectedProject={selectedProject ?? null}
+            basePath={selectedSection === "projects" ? projectBasePath : knowledgeBasePath}
             onSync={handleSync}
-            onUpdateRemote={handleUpdateRemote}
+            onSyncAll={handleSyncAll}
+            globalRemoteUrl={globalRemoteUrl}
+            onUpdateRemote={handleUpdateGlobalRemote}
             onDeleteFolder={handleDeleteFolder}
           />
         }

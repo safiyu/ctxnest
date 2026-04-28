@@ -1,21 +1,5 @@
 # Changelog
 
-## 1.1.0 (2026-04-28)
-
-### Features & Improvements
-- **Global Vault Architecture**:
-  - Transitioned from per-project Git configuration to a single centralized remote repository.
-  - Added a global Git Configuration Wizard supporting SSH and HTTPS (PAT) authentication.
-  - Implemented a "Sync All" feature to backup all registered projects with a single click.
-- **True Two-Way Collaboration Sync**:
-  - Sync engine upgraded from a "Local-Wins" backup to a true Two-Way Collaboration Client.
-  - Natively pulls and merges remote changes (additions, modifications, deletions) directly into the local workspace.
-  - Automatically indexes newly pulled remote files into the local SQLite database.
-  - Accurately mirrors nested folder structures within the Git repository, moving away from flattened structures to prevent file collision.
-- **Core Enhancements**:
-  - Implemented strict cleanup logic to purge old duplicate folders in the local GitHub staging area.
-  - Fixed an issue where locally deleted files were silently retained on disk and reappeared upon refresh.
-  - Git engine now explicitly tracks and stages local file deletions using `--all` parameter.
 ## 1.0.0 (2026-04-28)
 
 ### Features & Improvements

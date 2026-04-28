@@ -17,6 +17,7 @@ interface File {
   title: string;
   updated_at: string;
   created_at: string;
+  project_id?: number;
 }
 
 type SortBy = "name" | "updated_at" | "created_at";
@@ -29,9 +30,12 @@ interface FileListProps {
   onSortChange: (sortBy: SortBy) => void;
   selectedFolder: string | null;
   selectedProject: Project | null;
-  onSync: () => Promise<void>;
+  basePath?: string | null;
+  onSync: () => void;
+  onSyncAll: () => Promise<void>;
+  globalRemoteUrl: string | null;
   onUpdateRemote: (url: string) => Promise<void>;
-  onDeleteFolder?: () => Promise<void>;
+  onDeleteFolder?: () => void;
 }
 
 export function FileList({
@@ -42,33 +46,48 @@ export function FileList({
   onSortChange,
   selectedFolder,
   selectedProject,
+  basePath,
   onSync,
+  onSyncAll,
+  globalRemoteUrl,
   onUpdateRemote,
   onDeleteFolder,
 }: FileListProps) {
-  const projectPath = selectedProject?.path ?? null;
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
     if (selectedFolder) {
-      if (projectPath) {
-        const normalizedProjectPath = projectPath.endsWith("/")
-          ? projectPath
-          : projectPath + "/";
+      // Use explicit basePath if available (from FolderTree/API)
+      if (basePath) {
+        const normalizedBasePath = basePath.endsWith("/") ? basePath : basePath + "/";
+        const folderPrefix = normalizedBasePath + selectedFolder + "/";
+        result = result.filter((f) => f.path.startsWith(folderPrefix));
+      } else if (selectedProject?.path) {
+        // Fallback for projects if basePath not passed
+        const normalizedProjectPath = selectedProject.path.endsWith("/")
+          ? selectedProject.path
+          : selectedProject.path + "/";
         const folderPrefix = normalizedProjectPath + selectedFolder + "/";
         result = result.filter((f) => f.path.startsWith(folderPrefix));
       } else {
-        // Knowledge base files — check if they are in the folder
-        // Paths for KB files are usually absolute: /.../knowledge/folder/file.md
-        // We can check if the folder is part of the path
+        // Legacy fallback for knowledge base
         result = result.filter((f) => {
           const parts = f.path.split("/knowledge/");
-          if (parts.length < 2) return false;
-          return parts[1].startsWith(selectedFolder + "/");
+          if (parts.length > 1) {
+            return parts[1].startsWith(selectedFolder + "/");
+          }
+          return false;
         });
       }
+    } else if (selectedProject?.path) {
+      // Root of a project
+      result = result.filter((f) => f.project_id === selectedProject.id);
+    } else {
+      // Root of knowledge base (legacy logic)
+      result = result.filter((f) => !f.project_id);
     }
 
+    // Sort files
     switch (sortBy) {
       case "name":
         result.sort((a, b) => a.title.localeCompare(b.title));
@@ -88,31 +107,34 @@ export function FileList({
     }
 
     return result;
-  }, [files, sortBy, selectedFolder, projectPath]);
+  }, [files, sortBy, selectedFolder, selectedProject, basePath]);
 
   return (
     <div className="flex flex-col h-full">
-      {selectedProject && (
-        <SyncPanel
-          projectId={selectedProject.id}
-          remoteUrl={selectedProject.remote_url}
-          onSync={onSync}
-          onUpdateRemote={onUpdateRemote}
-        />
-      )}
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-[#333333] flex items-center justify-between">
-        <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wide">
-          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "FILE" : "FILES"}
+      <SyncPanel
+        remoteUrl={globalRemoteUrl}
+        onSync={selectedProject ? async () => onSync() : undefined}
+        onSyncAll={onSyncAll}
+        onUpdateRemote={onUpdateRemote}
+      />
+      <div className="px-4 py-2 bg-black/10 border-b border-[#222222] flex items-center justify-between">
+        <div className="text-[10px] font-bold text-gray-500 tracking-[1px] uppercase">
+          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "File" : "Files"}
         </div>
-        <select
-          value={sortBy}
-          onChange={(e) => onSortChange(e.target.value as SortBy)}
-          className="text-xs font-medium bg-transparent border border-gray-300 dark:border-[#333333] rounded px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-amber-accent"
-        >
-          <option value="name">Sort by Name</option>
-          <option value="updated_at">Sort by Updated</option>
-          <option value="created_at">Sort by Created</option>
-        </select>
+        <div className="relative">
+          <select
+            value={sortBy}
+            onChange={(e) => onSortChange(e.target.value as SortBy)}
+            className="text-[10px] font-bold bg-[#111111] border border-amber-accent/30 rounded px-2 pr-6 py-1 text-amber-accent/90 hover:text-amber-accent hover:border-amber-accent/60 transition-all cursor-pointer outline-none appearance-none"
+          >
+            <option value="name" className="bg-[#111111] text-amber-accent">NAME</option>
+            <option value="updated_at" className="bg-[#111111] text-amber-accent">UPDATED</option>
+            <option value="created_at" className="bg-[#111111] text-amber-accent">CREATED</option>
+          </select>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-amber-accent/50">
+            ▼
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -136,7 +158,7 @@ export function FileList({
               </p>
             </div>
             
-            {selectedFolder && !selectedProject && onDeleteFolder && (
+            {selectedFolder && onDeleteFolder && (
               <div className="mt-6 flex flex-col items-center gap-3">
                 <div className="h-px w-16 bg-[var(--border)]" />
                 <button

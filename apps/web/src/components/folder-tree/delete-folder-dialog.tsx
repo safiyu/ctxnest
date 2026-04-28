@@ -1,7 +1,5 @@
 "use client";
 
-import { Modal } from "../ui/modal";
-
 interface DeleteFolderDialogProps {
   open: boolean;
   folderName: string;

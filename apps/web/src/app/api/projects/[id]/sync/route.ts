@@ -8,6 +8,13 @@ export async function POST(
 ) {
   ensureDbInitialized();
   const { id } = await params;
-  const backedUp = await syncBackup(parseInt(id, 10), DATA_DIR);
-  return NextResponse.json({ backed_up: backedUp.length });
+  console.log(`[Sync] Starting sync for project ${id}...`);
+  try {
+    const backedUp = await syncBackup(parseInt(id, 10), DATA_DIR);
+    console.log(`[Sync] Completed. Backed up ${backedUp.length} files.`);
+    return NextResponse.json({ backed_up: backedUp.length });
+  } catch (error: any) {
+    console.error(`[Sync] Failed for project ${id}:`, error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

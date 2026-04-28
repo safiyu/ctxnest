@@ -34,15 +34,17 @@ ENV CTXNEST_DB_PATH=/app/data/ctxnest.db
 RUN mkdir -p /app/data
 
 # Copy built standalone web app
-# Standalone mode copies all necessary node_modules into the standalone folder
 COPY --from=builder /app/apps/web/next.config.ts ./
 COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
+# Copy built MCP server for optional use via docker exec
+COPY --from=builder /app/apps/mcp/dist ./apps/mcp/dist
+COPY --from=builder /app/apps/mcp/package.json ./apps/mcp/package.json
+
 # The standalone server runs on port 3000 by default
 EXPOSE 3000
 
 # We use the built standalone server
-# Note: Next.js standalone moves the app into a nested folder structure
 CMD ["node", "apps/web/server.js"]

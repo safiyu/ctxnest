@@ -73,7 +73,17 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { deleteFolder } = await import("@ctxnest/core");
-    deleteFolder(projectPath, folderName);
+    
+    if (!projectId || projectId === "null") {
+      // Knowledge Base: Safe to delete physically
+      deleteFolder(projectPath, folderName);
+    } else {
+      // Project: DO NOT delete physically. Only un-index files in this folder.
+      const normalizedFolder = folderName.endsWith("/") ? folderName : folderName + "/";
+      const db = getDatabase();
+      db.prepare("DELETE FROM files WHERE project_id = ? AND path LIKE ?").run(projectId, `%/${normalizedFolder}%`);
+    }
+    
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Failed to delete folder:", error);

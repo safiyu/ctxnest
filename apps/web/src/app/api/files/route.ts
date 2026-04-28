@@ -12,7 +12,12 @@ export async function GET(req: NextRequest) {
   const folder = searchParams.get("folder");
 
   const filters: FileFilters = {};
-  if (projectId) filters.project_id = parseInt(projectId, 10);
+
+  if (projectId !== null) {
+    // "none" means explicitly filter for KB files (no project)
+    // Any number means filter by that project ID
+    filters.project_id = projectId === "none" ? null : parseInt(projectId, 10);
+  }
   if (tag) filters.tag = tag;
   if (favorite) filters.favorite = favorite === "true";
   if (folder) filters.folder = folder;
@@ -24,6 +29,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   ensureDbInitialized();
   const body = await req.json();
-  const file = createFile({ ...body, dataDir: DATA_DIR });
+  const file = await createFile({ ...body, dataDir: DATA_DIR });
   return NextResponse.json(file, { status: 201 });
 }

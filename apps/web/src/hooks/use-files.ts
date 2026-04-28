@@ -38,8 +38,8 @@ export function useFiles(options: UseFilesOptions = {}): UseFilesReturn {
       setLoading(true);
       const params = new URLSearchParams();
 
-      if (options.project_id !== undefined && options.project_id !== null) {
-        params.append("project_id", options.project_id.toString());
+      if (options.project_id !== undefined) {
+        params.append("project_id", options.project_id === null ? "none" : options.project_id.toString());
       }
       if (options.tag) {
         params.append("tag", options.tag);

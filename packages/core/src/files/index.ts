@@ -2,11 +2,11 @@
  * File operations module for CtxNest
  * Handles CRUD operations for .md files with SQLite indexing
  */
-
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { getDatabase } from "../db/index.js";
+import { commitFile } from "../git/index.js";
 import type { FileRecord, Destination, FileFilters, StorageType } from "../types.js";
 
 /**
@@ -82,7 +82,7 @@ export function slugify(name: string): string {
 /**
  * Create a new file
  */
-export function createFile(opts: CreateFileOptions): FileRecordWithContent {
+export async function createFile(opts: CreateFileOptions): Promise<FileRecordWithContent> {
   const db = getDatabase();
   const { title, content, destination, projectId, folder, tags = [], dataDir } = opts;
 
@@ -180,6 +180,13 @@ export function createFile(opts: CreateFileOptions): FileRecordWithContent {
   // Retrieve the created record
   const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
 
+  // Automatic Versioning: Commit new file to Git
+  try {
+    await commitFile(dataDir, filePath, `Create context file: ${title}`);
+  } catch (error) {
+    console.warn("Git auto-commit failed during creation:", error);
+  }
+
   return {
     ...fileRecord,
     content,
@@ -208,7 +215,7 @@ export function readFile(id: number): FileRecordWithContent {
 /**
  * Update file content
  */
-export function updateFile(id: number, content: string): FileRecord {
+export async function updateFile(id: number, content: string, dataDir: string): Promise<FileRecordWithContent> {
   const db = getDatabase();
 
   const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(id) as FileRecord | undefined;
@@ -237,9 +244,19 @@ export function updateFile(id: number, content: string): FileRecord {
   const insertFtsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
   insertFtsStmt.run(id, fileRecord.title, content);
 
+  // Automatic Versioning: Commit update to Git
+  try {
+    await commitFile(dataDir, fileRecord.path, `Update context file: ${fileRecord.title}`);
+  } catch (error) {
+    console.warn("Git auto-commit failed during update:", error);
+  }
+
   // Return updated record
   const updatedRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(id) as FileRecord;
-  return updatedRecord;
+  return {
+    ...updatedRecord,
+    content,
+  };
 }
 
 /**
@@ -252,16 +269,18 @@ export function deleteFile(id: number): void {
   const file = db.prepare("SELECT path, storage_type FROM files WHERE id = ?").get(id) as { path: string, storage_type: string } | undefined;
   
   if (file) {
-    // Delete from disk if it's a local file
-    // We only delete 'local' files (Knowledge Base / CtxNest managed)
-    // For 'reference' files (Project Root), we also delete them from the disk
-    try {
-      const { unlinkSync, existsSync } = require("node:fs");
-      if (existsSync(file.path)) {
-        unlinkSync(file.path);
+    // Safety: We only physically delete files from the Knowledge Base (where project_id is null).
+    // For project files, we only "un-index" them from the database to avoid accidental data loss in the project repo.
+    const dbRecord = db.prepare("SELECT project_id FROM files WHERE id = ?").get(id) as { project_id: number | null } | undefined;
+    
+    if (dbRecord && dbRecord.project_id === null) {
+      try {
+        if (existsSync(file.path)) {
+          unlinkSync(file.path);
+        }
+      } catch (e) {
+        console.error("Failed to delete Knowledge Base file from disk:", e);
       }
-    } catch (e) {
-      console.error("Failed to delete file from disk:", e);
     }
   }
 
@@ -287,7 +306,6 @@ export function createFolder(projectPath: string, folderName: string): string {
  * Delete a folder (recursive)
  */
 export function deleteFolder(projectPath: string, folderName: string): void {
-  const { rmSync } = require("node:fs");
   const fullPath = join(projectPath, folderName);
   rmSync(fullPath, { recursive: true, force: true });
 }
@@ -304,8 +322,12 @@ export function listFiles(opts: ListFilesOptions): FileRecord[] {
 
   if (filters) {
     if (filters.project_id !== undefined) {
-      sql += " AND project_id = ?";
-      params.push(filters.project_id);
+      if (filters.project_id === null) {
+        sql += " AND project_id IS NULL";
+      } else {
+        sql += " AND project_id = ?";
+        params.push(filters.project_id);
+      }
     }
 
     if (filters.storage_type !== undefined) {
