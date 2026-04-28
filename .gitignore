@@ -7,3 +7,9 @@ ctxnest.db
 *.tsbuildinfo
 CLAUDE.md
 ANTIGRAVITY.md
+data/
+ctxnest.db
+*.db
+*.db-journal
+*.db-shm
+*.db-wal

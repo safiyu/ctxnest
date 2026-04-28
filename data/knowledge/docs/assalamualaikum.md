@@ -1,1 +1,0 @@
-It's used by Muslims worldwide as a warm, respectful greeting between people, and is considered a form of blessing for the person you're greeting. A longer version is "Assalamu Alaikum Wa Rahmatullahi Wa Barakatuh", meaning "Peace, mercy, and blessings of God be upon you."
