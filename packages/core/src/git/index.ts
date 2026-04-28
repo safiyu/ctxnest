@@ -193,12 +193,13 @@ export async function syncBackup(
 
   // Handle remote pull if remote_url is configured
   // Ensure remote is set up
-  if (project.remote_url) {
+  const globalRemoteUrl = await getGlobalRemote(dataDir);
+  if (globalRemoteUrl) {
     try {
       try {
         await git.removeRemote("origin");
       } catch (e) {}
-      await git.addRemote("origin", project.remote_url);
+      await git.addRemote("origin", globalRemoteUrl);
 
       try {
         await git.raw(["rev-parse", "HEAD"]);
@@ -239,7 +240,7 @@ export async function syncBackup(
   }
 
   // --- STEP 2: PULL REMOTE TRUTH (MERGE) ---
-  if (project.remote_url) {
+  if (globalRemoteUrl) {
     try {
       // Rebase=false to force a true merge commit if both ends changed files
       await git.pull("origin", "main", { "--rebase": "false" }).catch((e) => {
@@ -310,7 +311,7 @@ export async function syncBackup(
   }
 
   // --- STEP 4: PUSH TO GITHUB ---
-  if (project.remote_url) {
+  if (globalRemoteUrl) {
     try {
       await git.branch(["-M", "main"]);
       await git.push("origin", "main");

@@ -6,6 +6,15 @@ let wss: WebSocketServer | null = null;
 export function startWebSocketServer(port: number, watchPaths: string[]) {
   if (wss) return wss;
   wss = new WebSocketServer({ port });
+  
+  wss.on("error", (e: any) => {
+    if (e.code === "EADDRINUSE") {
+      console.warn(`[CtxNest] WebSocket server port ${port} is already in use. Fast refresh detected.`);
+    } else {
+      console.error("[CtxNest] WebSocket server error:", e);
+    }
+  });
+
   const clients = new Set<WebSocket>();
   wss.on("connection", (ws) => {
     clients.add(ws);
