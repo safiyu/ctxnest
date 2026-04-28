@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.next/
+.turbo/
+ctxnest.db
+.superpowers/
+*.tsbuildinfo
+CLAUDE.md
+ANTIGRAVITY.md

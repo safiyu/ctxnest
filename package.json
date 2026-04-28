@@ -1,0 +1,18 @@
+{
+  "name": "ctxnest",
+  "version": "0.1.0",
+  "author": "Safiyu",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "test": "turbo test",
+    "lint": "turbo lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
