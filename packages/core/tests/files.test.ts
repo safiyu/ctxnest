@@ -17,7 +17,10 @@ import {
   slugify,
 } from "../src/files/index.js";
 
-const TEST_DATA_DIR = join(import.meta.dirname, "test-data");
+import { tmpdir } from "node:os";
+import { mkdtempSync } from "node:fs";
+const TEST_DATA_DIR = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
+const testDir = TEST_DATA_DIR;
 const TEST_DB_PATH = join(TEST_DATA_DIR, "test.db");
 
 describe("File Operations", () => {
@@ -40,21 +43,21 @@ describe("File Operations", () => {
     }
   });
 
-  test("slugify converts name to slug", () => {
+  test("slugify converts name to slug", async () => {
     expect(slugify("Hello World")).toBe("hello-world");
     expect(slugify("Test File 123")).toBe("test-file-123");
     expect(slugify("Multiple   Spaces")).toBe("multiple-spaces");
     expect(slugify("Special!@#$%Characters")).toBe("special-characters");
   });
 
-  test("computeHash generates SHA-256 hex digest", () => {
+  test("computeHash generates SHA-256 hex digest", async () => {
     const hash = computeHash("test content");
     expect(hash).toHaveLength(64); // SHA-256 produces 64 hex characters
     expect(hash).toMatch(/^[a-f0-9]+$/);
   });
 
-  test("creates knowledge base file on disk and indexes it", () => {
-    const file = createFile({
+  test("creates knowledge base file on disk and indexes it", async () => {
+    const file = await createFile({
       title: "My Knowledge",
       content: "This is my knowledge base content",
       destination: "knowledge",
@@ -91,7 +94,7 @@ describe("File Operations", () => {
     expect(tags.map(t => t.name)).toEqual(expect.arrayContaining(["test", "knowledge"]));
   });
 
-  test("creates ctxnest project doc", () => {
+  test("creates ctxnest project doc", async () => {
     const db = getDatabase();
 
     // Create a project first
@@ -103,7 +106,7 @@ describe("File Operations", () => {
 
     const project = db.prepare("SELECT id FROM projects WHERE slug = ?").get("test-project") as { id: number };
 
-    const file = createFile({
+    const file = await createFile({
       title: "Project Doc",
       content: "Project documentation content",
       destination: "ctxnest",
@@ -120,8 +123,8 @@ describe("File Operations", () => {
     expect(existsSync(expectedPath)).toBe(true);
   });
 
-  test("reads file content by id", () => {
-    const created = createFile({
+  test("reads file content by id", async () => {
+    const created = await createFile({
       title: "Test Read",
       content: "Content to read",
       destination: "knowledge",
@@ -135,8 +138,8 @@ describe("File Operations", () => {
     expect(read.content).toBe("Content to read");
   });
 
-  test("updates file content and hash", () => {
-    const created = createFile({
+  test("updates file content and hash", async () => {
+    const created = await createFile({
       title: "Test Update",
       content: "Original content",
       destination: "knowledge",
@@ -145,7 +148,7 @@ describe("File Operations", () => {
 
     const originalHash = created.content_hash;
 
-    const updated = updateFile(created.id, "Updated content");
+    const updated = await updateFile(created.id, "Updated content", TEST_DATA_DIR);
 
     expect(updated.id).toBe(created.id);
     expect(updated.content_hash).not.toBe(originalHash);
@@ -162,8 +165,8 @@ describe("File Operations", () => {
     expect(ftsResult?.rowid).toBe(created.id);
   });
 
-  test("soft deletes file", () => {
-    const created = createFile({
+  test("soft deletes file", async () => {
+    const created = await createFile({
       title: "Test Delete",
       content: "To be deleted",
       destination: "knowledge",
@@ -187,7 +190,7 @@ describe("File Operations", () => {
   });
 
   test("lists all files", async () => {
-    const file1 = createFile({
+    const file1 = await createFile({
       title: "File 1",
       content: "Content 1",
       destination: "knowledge",
@@ -197,7 +200,7 @@ describe("File Operations", () => {
     // Wait at least 1 second to ensure different timestamps (SQLite datetime has second precision)
     await new Promise(resolve => setTimeout(resolve, 1100));
 
-    const file2 = createFile({
+    const file2 = await createFile({
       title: "File 2",
       content: "Content 2",
       destination: "knowledge",
@@ -212,7 +215,7 @@ describe("File Operations", () => {
     expect(files[1].id).toBe(file1.id);
   });
 
-  test("filters by storage_type", () => {
+  test("filters by storage_type", async () => {
     const db = getDatabase();
 
     // Create a project
@@ -224,14 +227,14 @@ describe("File Operations", () => {
 
     const project = db.prepare("SELECT id FROM projects WHERE slug = ?").get("test-project") as { id: number };
 
-    createFile({
+    await createFile({
       title: "Knowledge File",
       content: "Knowledge",
       destination: "knowledge",
       dataDir: TEST_DATA_DIR,
     });
 
-    createFile({
+    await createFile({
       title: "Project File",
       content: "Project",
       destination: "project",
@@ -256,8 +259,8 @@ describe("File Operations", () => {
     expect(referenceFiles[0].title).toBe("Project File");
   });
 
-  test("moves file on disk and updates DB path", () => {
-    const created = createFile({
+  test("moves file on disk and updates DB path", async () => {
+    const created = await createFile({
       title: "Test Move",
       content: "Move me",
       destination: "knowledge",

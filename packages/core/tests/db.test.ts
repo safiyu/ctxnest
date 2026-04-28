@@ -19,7 +19,7 @@ describe("Database", () => {
     }
   });
 
-  it("creates all tables on init", () => {
+  it("creates all tables on init", async () => {
     testDir = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
     testDbPath = join(testDir, "test.db");
 
@@ -42,7 +42,7 @@ describe("Database", () => {
     expect(tableNames).toContain("users");
   });
 
-  it("creates FTS5 virtual table", () => {
+  it("creates FTS5 virtual table", async () => {
     testDir = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
     testDbPath = join(testDir, "test.db");
 
@@ -59,7 +59,7 @@ describe("Database", () => {
     expect(tables[0].name).toBe("fts_index");
   });
 
-  it("inserts default user", () => {
+  it("inserts default user", async () => {
     testDir = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
     testDbPath = join(testDir, "test.db");
 
@@ -78,7 +78,7 @@ describe("Database", () => {
     expect(user.email).toBeNull();
   });
 
-  it("enables WAL mode", () => {
+  it("enables WAL mode", async () => {
     testDir = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
     testDbPath = join(testDir, "test.db");
 

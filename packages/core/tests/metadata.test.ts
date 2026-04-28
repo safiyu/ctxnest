@@ -18,7 +18,10 @@ import {
   listProjects,
 } from "../src/metadata/index.js";
 
-const testDir = join(import.meta.dirname, "test-data");
+import { tmpdir } from "node:os";
+import { mkdtempSync } from "node:fs";
+const TEST_DATA_DIR = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
+const testDir = TEST_DATA_DIR;
 const dbPath = join(testDir, "test.db");
 const dataDir = join(testDir, "data");
 
@@ -39,9 +42,9 @@ describe("Metadata Module", () => {
     closeDatabase();
   });
 
-  it("addTags: adds tags to a file and verifies via listTags", () => {
+  it("addTags: adds tags to a file and verifies via listTags", async () => {
     // Create a test file
-    const file = createFile({
+    const file = await createFile({
       title: "Test File",
       content: "Test content",
       destination: "knowledge",
@@ -75,9 +78,9 @@ describe("Metadata Module", () => {
     expect(fileTags[1].name).toBe("tag2");
   });
 
-  it("removeTags: removes specific tags from a file", () => {
+  it("removeTags: removes specific tags from a file", async () => {
     // Create a test file
-    const file = createFile({
+    const file = await createFile({
       title: "Test File",
       content: "Test content",
       destination: "knowledge",
@@ -109,9 +112,9 @@ describe("Metadata Module", () => {
     expect(fileTags[0].name).toBe("tag2");
   });
 
-  it("setFavorite: toggles favorite status", () => {
+  it("setFavorite: toggles favorite status", async () => {
     // Create a test file
-    const file = createFile({
+    const file = await createFile({
       title: "Test File",
       content: "Test content",
       destination: "knowledge",
@@ -135,16 +138,16 @@ describe("Metadata Module", () => {
     expect(favorite).toBeUndefined();
   });
 
-  it("search: finds files by content keyword", () => {
+  it("search: finds files by content keyword", async () => {
     // Create two files with different content
-    const file1 = createFile({
+    const file1 = await createFile({
       title: "File One",
       content: "This file contains the keyword unicorn",
       destination: "knowledge",
       dataDir,
     });
 
-    const file2 = createFile({
+    const file2 = await createFile({
       title: "File Two",
       content: "This file contains different content",
       destination: "knowledge",
@@ -160,16 +163,16 @@ describe("Metadata Module", () => {
     expect(results[0].rank).toBeDefined();
   });
 
-  it("search: finds files by title", () => {
+  it("search: finds files by title", async () => {
     // Create files
-    createFile({
+    await createFile({
       title: "Important Document",
       content: "Some content here",
       destination: "knowledge",
       dataDir,
     });
 
-    createFile({
+    await createFile({
       title: "Other File",
       content: "Different content",
       destination: "knowledge",
@@ -183,7 +186,7 @@ describe("Metadata Module", () => {
     expect(results[0].title).toBe("Important Document");
   });
 
-  it("registerProject: creates project with correct slug", () => {
+  it("registerProject: creates project with correct slug", async () => {
     // Register project
     const project = registerProject("My Test Project", "/path/to/project", "A test project");
 
@@ -195,7 +198,7 @@ describe("Metadata Module", () => {
     expect(project.created_at).toBeDefined();
   });
 
-  it("discoverFiles: finds markdown files in project directory", () => {
+  it("discoverFiles: finds markdown files in project directory", async () => {
     // Create a temp directory with test files
     const projectPath = join(testDir, "test-project");
     mkdirSync(projectPath, { recursive: true });
@@ -224,7 +227,7 @@ describe("Metadata Module", () => {
     });
   });
 
-  it("listProjects: returns all projects sorted by name", () => {
+  it("listProjects: returns all projects sorted by name", async () => {
     // Register two projects
     registerProject("Zeta Project", "/path/to/zeta");
     registerProject("Alpha Project", "/path/to/alpha");

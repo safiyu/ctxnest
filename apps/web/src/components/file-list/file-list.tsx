@@ -30,6 +30,7 @@ interface FileListProps {
   onSortChange: (sortBy: SortBy) => void;
   selectedFolder: string | null;
   selectedProject: Project | null;
+  selectedSection?: "projects" | "knowledge" | null;
   basePath?: string | null;
   onSync: () => void;
   onSyncAll: () => Promise<void>;
@@ -46,6 +47,7 @@ export function FileList({
   onSortChange,
   selectedFolder,
   selectedProject,
+  selectedSection,
   basePath,
   onSync,
   onSyncAll,
@@ -148,6 +150,16 @@ export function FileList({
               onClick={() => onSelectFile(file.id)}
             />
           ))
+        ) : !selectedSection ? (
+          <div className="flex flex-col items-center justify-center py-16 text-[#475569] dark:text-[#94A3B8] gap-4">
+            <span className="text-6xl opacity-30 dark-icon">📂</span>
+            <div className="text-center px-6">
+              <p className="text-lg font-bold text-[var(--text-primary)]">No Selection</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-2">
+                Please select a project or the Knowledge Base from the sidebar to view files.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-16 text-[#475569] dark:text-[#94A3B8] gap-4">
             <span className="text-6xl opacity-30 dark-icon">📂</span>

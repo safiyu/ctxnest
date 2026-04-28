@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS projects (
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
   path TEXT,
-  remote_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

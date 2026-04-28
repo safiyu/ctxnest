@@ -182,7 +182,15 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
 
   // Automatic Versioning: Commit new file to Git
   try {
-    await commitFile(dataDir, filePath, `Create context file: ${title}`);
+    let repoDir = dataDir;
+    // If it's a reference file in an external project, commit to the project's own git
+    if (storageType === "reference" && projectId) {
+      const project = db.prepare("SELECT path FROM projects WHERE id = ?").get(projectId) as { path: string | null } | undefined;
+      if (project?.path) {
+        repoDir = project.path;
+      }
+    }
+    await commitFile(repoDir, filePath, `Create context file: ${title}`);
   } catch (error) {
     console.warn("Git auto-commit failed during creation:", error);
   }
@@ -246,7 +254,15 @@ export async function updateFile(id: number, content: string, dataDir: string): 
 
   // Automatic Versioning: Commit update to Git
   try {
-    await commitFile(dataDir, fileRecord.path, `Update context file: ${fileRecord.title}`);
+    let repoDir = dataDir;
+    // If it's a reference file in an external project, commit to the project's own git
+    if (fileRecord.storage_type === "reference" && fileRecord.project_id) {
+      const project = db.prepare("SELECT path FROM projects WHERE id = ?").get(fileRecord.project_id) as { path: string | null } | undefined;
+      if (project?.path) {
+        repoDir = project.path;
+      }
+    }
+    await commitFile(repoDir, fileRecord.path, `Update context file: ${fileRecord.title}`);
   } catch (error) {
     console.warn("Git auto-commit failed during update:", error);
   }

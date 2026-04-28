@@ -27,15 +27,61 @@ export function createFileWatcher(
 
   watcher.on("add", (filePath) => {
     if (!filePath.endsWith(".md")) return;
+    handleWatcherAdd(filePath);
     onEvent({ type: "add", path: filePath });
   });
 
   watcher.on("unlink", (filePath) => {
     if (!filePath.endsWith(".md")) return;
+    handleWatcherUnlink(filePath);
     onEvent({ type: "unlink", path: filePath });
   });
 
   return watcher;
+}
+
+function handleWatcherAdd(filePath: string): void {
+  try {
+    const db = getDatabase();
+    // Check if already in DB
+    const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(filePath);
+    if (existing) return;
+
+    // Determine project_id
+    let projectId: number | null = null;
+    const projects = db.prepare("SELECT id, path FROM projects WHERE path IS NOT NULL").all() as { id: number, path: string }[];
+    for (const p of projects) {
+      if (filePath.startsWith(p.path)) {
+        projectId = p.id;
+        break;
+      }
+    }
+
+    const content = fs.readFileSync(filePath, "utf-8");
+    const hash = crypto.createHash("sha256").update(content).digest("hex");
+    const title = filePath.split(/[/\\]/).pop()?.replace(/\.md$/, "") || "Untitled";
+
+    const result = db.prepare(
+      "INSERT INTO files (path, title, project_id, storage_type, content_hash) VALUES (?, ?, ?, 'reference', ?)"
+    ).run(filePath, title, projectId, hash);
+
+    db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(result.lastInsertRowid, title, content);
+  } catch (e) {
+    // DB not initialized or read failed
+  }
+}
+
+function handleWatcherUnlink(filePath: string): void {
+  try {
+    const db = getDatabase();
+    const file = db.prepare("SELECT id FROM files WHERE path = ?").get(filePath) as { id: number } | undefined;
+    if (file) {
+      db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(file.id);
+      db.prepare("DELETE FROM files WHERE id = ?").run(file.id);
+    }
+  } catch (e) {
+    // DB not initialized
+  }
 }
 
 function updateFileHash(filePath: string): void {

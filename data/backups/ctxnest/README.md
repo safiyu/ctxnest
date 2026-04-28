@@ -2,7 +2,7 @@
   <img src="apps/web/src/components/theme/logo.png" alt="CtxNest Logo" width="180">
 </p>
 
-<h1 align="center">CtxNest v1.0</h1>
+<h1 align="center">CtxNest v1.1</h1>
 
 <p align="center">The Portable Intelligence Layer for Your Projects & Knowledge Base</p>
 
@@ -14,8 +14,8 @@ CtxNest is a high-performance markdown context manager that bridges the gap betw
 
 Standard Git is built for code, but CtxNest is built for **Context**. While your context files live inside your project repo, CtxNest manages them with a dedicated synchronization layer that offers three critical advantages:
 
-1.  **The "Context Vault" (Isolation)**: Keep your main project repository clean. Sync your research notes, architecture walkthroughs, and AI-generated documentation to a separate, private "Context Vault" repository without cluttering your main code's PR history.
-2.  **Multi-Machine Portability**: Move between machines and environments instantly. CtxNest allows you to pull down your entire AI state—including metadata, tags, and processed snippets—onto a fresh environment before you've even indexed a single local file.
+1.  **The Global Vault**: Transition from a fragmented multi-repo setup to a powerful **Single Vault Architecture**. Sync all your projects to a single, unified Git repository, securely organized by project subdirectories.
+2.  **True Two-Way Collaboration**: It's not just a backup tool. CtxNest features a sophisticated two-way sync engine that natively pulls and merges changes made by collaborators, gracefully injecting remote additions directly into your local database and workspace using Git's native merge logic.
 3.  **Safety & Redundancy**: CtxNest creates independent, versioned snapshots of your context. If you accidentally wipe a folder or face a catastrophic merge conflict in your project, your "Context Git" provides a reliable safety net to restore your AI's memory.
 
 > [!TIP]
@@ -24,6 +24,9 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 ---
 
 ## 🚀 Key Features
+
+- **"Sync All" Architecture**: One-click global synchronization across all your registered projects.
+- **Git Wizard Integration**: A seamless Git authentication flow supporting SSH, HTTPS (PAT), and CLI auth paths.
 
 - **Native MCP Integration**: Plug-and-play support for all modern AI coding tools.
 - **Dual-Brain Architecture**: Segregate project-specific context from your personal Knowledge Base.

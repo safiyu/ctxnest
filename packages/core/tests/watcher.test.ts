@@ -21,7 +21,7 @@ afterEach(() => {
 
 describe("watcher", () => {
   it("emits change event when a tracked file is modified", async () => {
-    const file = createFile({
+    const file = await createFile({
       title: "Watched",
       content: "original",
       destination: "knowledge",

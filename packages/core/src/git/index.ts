@@ -177,10 +177,12 @@ export async function syncBackup(
   mkdirSync(backupDir, { recursive: true });
 
   // Initialize git if not already initialized
-  const git: SimpleGit = simpleGit(dataDir).env({
-    ...process.env,
-    GIT_TERMINAL_PROMPT: "0",
-  });
+  const env: Record<string, string | undefined> = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+  delete env.PAGER;
+  delete env.EDITOR;
+  delete env.VISUAL;
+
+  const git: SimpleGit = simpleGit(dataDir).env(env as any);
 
   try {
     await git.status();
@@ -225,10 +227,18 @@ export async function syncBackup(
     if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
       continue; 
     }
-    const backupPath = join(backupDir, relativePath);
 
+    // If file was deleted locally outside the app, propagate deletion!
+    if (!existsSync(file.path)) {
+      db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(file.id);
+      db.prepare("DELETE FROM files WHERE id = ?").run(file.id);
+      continue;
+    }
+
+    const backupPath = join(backupDir, relativePath);
     mkdirSync(dirname(backupPath), { recursive: true });
     copyFileSync(file.path, backupPath);
+    copiedPaths.push(backupPath);
   }
 
   const backupRelativeDir = relative(dataDir, backupDir);
@@ -284,10 +294,13 @@ export async function syncBackup(
       // If this file wasn't in the DB, a collaborator added it! Insert it.
       if (!existingDbPaths.has(localAbsolutePath)) {
         const title = relativePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled";
-        const contentHash = createHash("md5").update(readFileSync(localAbsolutePath)).digest("hex");
-        db.prepare(
+        const content = readFileSync(localAbsolutePath, "utf-8");
+        const contentHash = createHash("sha256").update(content).digest("hex");
+        const result = db.prepare(
           "INSERT INTO files (path, title, project_id, storage_type, content_hash) VALUES (?, ?, ?, ?, ?)"
         ).run(localAbsolutePath, title, project.id, "reference", contentHash);
+        
+        db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(result.lastInsertRowid, title, content);
         copiedPaths.push(localAbsolutePath);
       }
     }
@@ -305,7 +318,8 @@ export async function syncBackup(
           unlinkSync(file.path);
         }
       } catch (e) {}
-      // Remove from Database
+      // Remove from Database and FTS
+      db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(file.id);
       db.prepare("DELETE FROM files WHERE id = ?").run(file.id);
     }
   }

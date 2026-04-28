@@ -1,0 +1,339 @@
+
+> @ctxnest/core@1.1.0 test /home/safiyu/Projects/ctxnest/packages/core
+> vitest run
+
+
+ RUN  v3.2.4 /home/safiyu/Projects/ctxnest/packages/core
+
+stdout | tests/db.test.ts > Database > creates all tables on init
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/db.test.ts > Database > creates FTS5 virtual table
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/db.test.ts > Database > inserts default user
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/files.test.ts > File Operations > slugify converts name to slug
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/db.test.ts > Database > enables WAL mode
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/watcher.test.ts > watcher > emits change event when a tracked file is modified
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+ ❯ tests/db.test.ts (4 tests | 4 failed) 45ms
+   × Database > creates all tables on init 26ms
+     → duplicate column name: remote_url
+   × Database > creates FTS5 virtual table 5ms
+     → duplicate column name: remote_url
+   × Database > inserts default user 6ms
+     → duplicate column name: remote_url
+   × Database > enables WAL mode 8ms
+     → duplicate column name: remote_url
+stdout | tests/metadata.test.ts > Metadata Module > addTags: adds tags to a file and verifies via listTags
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/watcher.test.ts > watcher > can be closed without errors
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+ ❯ tests/watcher.test.ts (2 tests | 2 failed) 25ms
+   × watcher > emits change event when a tracked file is modified 17ms
+     → duplicate column name: remote_url
+   × watcher > can be closed without errors 7ms
+     → duplicate column name: remote_url
+ ❯ tests/git.test.ts (5 tests | 5 failed) 35ms
+   × Git Operations > commitFile writes a file and commits it with message 19ms
+     → /home/safiyu/Projects/ctxnest/packages/core/tests/test-data/.git/refs: No such file or directory
+
+   × Git Operations > getHistory returns commits in reverse order 3ms
+     → fatal: unable to get current working directory: No such file or directory
+
+   × Git Operations > getDiff returns diff between two commits 4ms
+     → fatal: unable to get current working directory: No such file or directory
+
+   × Git Operations > restoreVersion restores file to specific commit 4ms
+     → fatal: unable to get current working directory: No such file or directory
+
+   × Git Operations > syncBackup copies reference files to backup directory and commits 4ms
+     → fatal: unable to get current working directory: No such file or directory
+
+stdout | tests/files.test.ts > File Operations > updates file content and hash
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/metadata.test.ts > Metadata Module > search: finds files by title
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/files.test.ts > File Operations > lists all files
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+ ❯ tests/metadata.test.ts (8 tests | 8 failed) 35ms
+   × Metadata Module > addTags: adds tags to a file and verifies via listTags 14ms
+     → duplicate column name: remote_url
+   × Metadata Module > removeTags: removes specific tags from a file 4ms
+     → disk I/O error
+   × Metadata Module > setFavorite: toggles favorite status 1ms
+     → disk I/O error
+   × Metadata Module > search: finds files by content keyword 3ms
+     → disk I/O error
+   × Metadata Module > search: finds files by title 5ms
+     → duplicate column name: remote_url
+   × Metadata Module > registerProject: creates project with correct slug 2ms
+     → disk I/O error
+   × Metadata Module > discoverFiles: finds markdown files in project directory 2ms
+     → disk I/O error
+   × Metadata Module > listProjects: returns all projects sorted by name 3ms
+     → disk I/O error
+stdout | tests/files.test.ts > File Operations > filters by storage_type
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+stdout | tests/files.test.ts > File Operations > moves file on disk and updates DB path
+[Database] Running migration: 001-initial.sql
+[Database] Running migration: 002-remote-git.sql
+
+ ❯ tests/files.test.ts (10 tests | 10 failed) 48ms
+   × File Operations > slugify converts name to slug 11ms
+     → duplicate column name: remote_url
+   × File Operations > computeHash generates SHA-256 hex digest 3ms
+     → disk I/O error
+   × File Operations > creates knowledge base file on disk and indexes it 3ms
+     → disk I/O error
+   × File Operations > creates ctxnest project doc 4ms
+     → disk I/O error
+   × File Operations > reads file content by id 3ms
+     → disk I/O error
+   × File Operations > updates file content and hash 5ms
+     → duplicate column name: remote_url
+   × File Operations > soft deletes file 2ms
+     → disk I/O error
+   × File Operations > lists all files 5ms
+     → duplicate column name: remote_url
+   × File Operations > filters by storage_type 5ms
+     → duplicate column name: remote_url
+   × File Operations > moves file on disk and updates DB path 5ms
+     → duplicate column name: remote_url
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 29 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/db.test.ts > Database > creates all tables on init
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/db.test.ts:26:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/29]⎯
+
+ FAIL  tests/db.test.ts > Database > creates FTS5 virtual table
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/db.test.ts:49:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/29]⎯
+
+ FAIL  tests/db.test.ts > Database > inserts default user
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/db.test.ts:66:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/29]⎯
+
+ FAIL  tests/db.test.ts > Database > enables WAL mode
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/db.test.ts:85:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/29]⎯
+
+ FAIL  tests/files.test.ts > File Operations > slugify converts name to slug
+ FAIL  tests/files.test.ts > File Operations > updates file content and hash
+ FAIL  tests/files.test.ts > File Operations > lists all files
+ FAIL  tests/files.test.ts > File Operations > filters by storage_type
+ FAIL  tests/files.test.ts > File Operations > moves file on disk and updates DB path
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/files.test.ts:33:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/29]⎯
+
+ FAIL  tests/files.test.ts > File Operations > computeHash generates SHA-256 hex digest
+ FAIL  tests/files.test.ts > File Operations > creates knowledge base file on disk and indexes it
+ FAIL  tests/files.test.ts > File Operations > creates ctxnest project doc
+ FAIL  tests/files.test.ts > File Operations > reads file content by id
+ FAIL  tests/files.test.ts > File Operations > soft deletes file
+SqliteError: disk I/O error
+ ❯ Database.pragma ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/pragma.js:11:44
+ ❯ createDatabase src/db/index.ts:29:6
+     27| 
+     28|   // Enable WAL mode for better concurrency
+     29|   db.pragma("journal_mode = WAL");
+       |      ^
+     30| 
+     31|   // Enable foreign key constraints
+ ❯ tests/files.test.ts:33:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/29]⎯
+
+ FAIL  tests/git.test.ts > Git Operations > commitFile writes a file and commits it with message
+Error: /home/safiyu/Projects/ctxnest/packages/core/tests/test-data/.git/refs: No such file or directory
+
+ ❯ Object.action ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/plugins/error-detection.plugin.ts:42:29
+ ❯ PluginStore.exec ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/plugins/plugin-store.ts:54:29
+ ❯ ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:123:42
+ ❯ GitExecutorChain.handleTaskData ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:120:14
+ ❯ GitExecutorChain.attemptRemoteTask ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:96:40
+ ❯ GitExecutorChain.attemptTask ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:61:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/29]⎯
+
+ FAIL  tests/git.test.ts > Git Operations > getHistory returns commits in reverse order
+ FAIL  tests/git.test.ts > Git Operations > getDiff returns diff between two commits
+Error: fatal: unable to get current working directory: No such file or directory
+
+ ❯ Object.action ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/plugins/error-detection.plugin.ts:42:29
+ ❯ PluginStore.exec ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/plugins/plugin-store.ts:54:29
+ ❯ ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:123:42
+ ❯ GitExecutorChain.handleTaskData ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:120:14
+ ❯ GitExecutorChain.attemptRemoteTask ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:96:40
+ ❯ GitExecutorChain.attemptTask ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:61:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/29]⎯
+
+ FAIL  tests/git.test.ts > Git Operations > restoreVersion restores file to specific commit
+ FAIL  tests/git.test.ts > Git Operations > syncBackup copies reference files to backup directory and commits
+Error: fatal: unable to get current working directory: No such file or directory
+
+ ❯ Object.action ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/plugins/error-detection.plugin.ts:42:29
+ ❯ PluginStore.exec ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/plugins/plugin-store.ts:54:29
+ ❯ ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:123:42
+ ❯ GitExecutorChain.handleTaskData ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:120:14
+ ❯ GitExecutorChain.attemptRemoteTask ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:96:40
+ ❯ GitExecutorChain.attemptTask ../../node_modules/.pnpm/simple-git@3.36.0/node_modules/simple-git/src/lib/runners/git-executor-chain.ts:61:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/29]⎯
+
+ FAIL  tests/metadata.test.ts > Metadata Module > addTags: adds tags to a file and verifies via listTags
+ FAIL  tests/metadata.test.ts > Metadata Module > search: finds files by title
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/metadata.test.ts:35:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/29]⎯
+
+ FAIL  tests/metadata.test.ts > Metadata Module > removeTags: removes specific tags from a file
+ FAIL  tests/metadata.test.ts > Metadata Module > setFavorite: toggles favorite status
+ FAIL  tests/metadata.test.ts > Metadata Module > search: finds files by content keyword
+ FAIL  tests/metadata.test.ts > Metadata Module > registerProject: creates project with correct slug
+ FAIL  tests/metadata.test.ts > Metadata Module > discoverFiles: finds markdown files in project directory
+ FAIL  tests/metadata.test.ts > Metadata Module > listProjects: returns all projects sorted by name
+SqliteError: disk I/O error
+ ❯ Database.pragma ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/pragma.js:11:44
+ ❯ createDatabase src/db/index.ts:29:6
+     27| 
+     28|   // Enable WAL mode for better concurrency
+     29|   db.pragma("journal_mode = WAL");
+       |      ^
+     30| 
+     31|   // Enable foreign key constraints
+ ❯ tests/metadata.test.ts:35:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/29]⎯
+
+ FAIL  tests/watcher.test.ts > watcher > emits change event when a tracked file is modified
+ FAIL  tests/watcher.test.ts > watcher > can be closed without errors
+SqliteError: duplicate column name: remote_url
+ ❯ Database.exec ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14
+ ❯ src/db/index.ts:101:13
+     99|       // Execute the migration in a transaction
+    100|       db.transaction(() => {
+    101|         db!.exec(sql);
+       |             ^
+    102|         insertMigrationStmt.run(file);
+    103|       })();
+ ❯ sqliteTransaction ../../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/methods/transaction.js:65:24
+ ❯ runMigrations src/db/index.ts:103:8
+ ❯ createDatabase src/db/index.ts:35:3
+ ❯ tests/watcher.test.ts:13:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/29]⎯
+
+
+ Test Files  5 failed (5)
+      Tests  29 failed (29)
+   Start at  23:45:10
+   Duration  366ms (transform 162ms, setup 0ms, collect 371ms, tests 188ms, environment 1ms, prepare 310ms)
+
+/home/safiyu/Projects/ctxnest/packages/core:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @ctxnest/core@1.1.0 test: `vitest run`
+Exit status 1

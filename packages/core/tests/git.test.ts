@@ -16,7 +16,10 @@ import {
   syncBackup,
 } from "../src/git/index.js";
 
-const TEST_DATA_DIR = join(import.meta.dirname, "test-data");
+import { tmpdir } from "node:os";
+import { mkdtempSync } from "node:fs";
+const TEST_DATA_DIR = mkdtempSync(join(tmpdir(), "ctxnest-test-"));
+const testDir = TEST_DATA_DIR;
 const TEST_DB_PATH = join(TEST_DATA_DIR, "test.db");
 const EXTERNAL_PROJECT_DIR = join(import.meta.dirname, "external-project");
 
@@ -205,7 +208,7 @@ describe("Git Operations", () => {
     const git: SimpleGit = simpleGit(TEST_DATA_DIR);
     const log = await git.log();
 
-    expect(log.latest?.message).toBe("Backup sync for project: Test Project");
+    expect(log.latest?.message).toBe("Sync local changes for project: Test Project");
     expect(log.total).toBe(1);
   });
 });

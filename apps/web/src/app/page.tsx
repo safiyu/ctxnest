@@ -327,6 +327,7 @@ export default function HomePage() {
             onSortChange={setSortBy}
             selectedFolder={selectedFolder}
             selectedProject={selectedProject ?? null}
+            selectedSection={selectedSection}
             basePath={selectedSection === "projects" ? projectBasePath : knowledgeBasePath}
             onSync={handleSync}
             onSyncAll={handleSyncAll}
