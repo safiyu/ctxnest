@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface MarkdownViewerProps {
   content: string;
@@ -10,6 +11,7 @@ export function MarkdownViewer({ content }: MarkdownViewerProps) {
   return (
     <div className="prose dark:prose-invert max-w-none p-6">
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
             <h1 className="text-amber-accent text-3xl font-bold mb-4">

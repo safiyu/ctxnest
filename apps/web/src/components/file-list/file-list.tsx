@@ -2,6 +2,14 @@
 
 import { useMemo } from "react";
 import { FileItem } from "./file-item";
+import { SyncPanel } from "./sync-panel";
+
+interface Project {
+  id: number;
+  name: string;
+  path: string;
+  remote_url: string | null;
+}
 
 interface File {
   id: number;
@@ -20,7 +28,9 @@ interface FileListProps {
   sortBy: SortBy;
   onSortChange: (sortBy: SortBy) => void;
   selectedFolder: string | null;
-  projectPath: string | null;
+  selectedProject: Project | null;
+  onSync: () => Promise<void>;
+  onUpdateRemote: (url: string) => Promise<void>;
 }
 
 export function FileList({
@@ -30,8 +40,11 @@ export function FileList({
   sortBy,
   onSortChange,
   selectedFolder,
-  projectPath,
+  selectedProject,
+  onSync,
+  onUpdateRemote,
 }: FileListProps) {
+  const projectPath = selectedProject?.path ?? null;
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
@@ -66,6 +79,14 @@ export function FileList({
 
   return (
     <div className="flex flex-col h-full">
+      {selectedProject && (
+        <SyncPanel
+          projectId={selectedProject.id}
+          remoteUrl={selectedProject.remote_url}
+          onSync={onSync}
+          onUpdateRemote={onUpdateRemote}
+        />
+      )}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-[#333333] flex items-center justify-between">
         <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 tracking-wide">
           {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "FILE" : "FILES"}

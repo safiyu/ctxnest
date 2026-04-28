@@ -67,6 +67,15 @@ export function runMigrations(): void {
     throw new Error("Database not initialized. Call createDatabase() first.");
   }
 
+  // Create migrations table if not exists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _migrations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      executed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   const migrationsDir = join(__dirname, "migrations");
 
   // Get all .sql files and sort them
@@ -74,12 +83,24 @@ export function runMigrations(): void {
     .filter((file) => file.endsWith(".sql"))
     .sort();
 
+  const getMigrationStmt = db.prepare("SELECT id FROM _migrations WHERE name = ?");
+  const insertMigrationStmt = db.prepare("INSERT INTO _migrations (name) VALUES (?)");
+
   // Execute each migration in order
   for (const file of migrationFiles) {
-    const migrationPath = join(migrationsDir, file);
-    const sql = readFileSync(migrationPath, "utf-8");
+    const isExecuted = getMigrationStmt.get(file);
 
-    // Execute the migration in a transaction
-    db.exec(sql);
+    if (!isExecuted) {
+      const migrationPath = join(migrationsDir, file);
+      const sql = readFileSync(migrationPath, "utf-8");
+
+      console.log(`[Database] Running migration: ${file}`);
+      
+      // Execute the migration in a transaction
+      db.transaction(() => {
+        db!.exec(sql);
+        insertMigrationStmt.run(file);
+      })();
+    }
   }
 }

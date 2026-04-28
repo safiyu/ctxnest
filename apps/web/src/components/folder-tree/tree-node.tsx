@@ -6,6 +6,7 @@ interface TreeNodeProps {
   label: string;
   icon?: string;
   active?: boolean;
+  initialExpanded?: boolean;
   children?: ReactNode;
   onClick?: () => void;
 }
@@ -14,10 +15,11 @@ export function TreeNode({
   label,
   icon,
   active = false,
+  initialExpanded = false,
   children,
   onClick,
 }: TreeNodeProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initialExpanded);
 
   const hasChildren = !!children;
 

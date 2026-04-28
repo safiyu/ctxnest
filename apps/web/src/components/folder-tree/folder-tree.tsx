@@ -2,10 +2,7 @@
 
 import { useMemo } from "react";
 import { TreeNode } from "./tree-node";
-import {
-  buildFolderTree,
-  FolderTreeNode,
-} from "@/lib/build-folder-tree";
+import { buildFolderTree, FolderTreeNode } from "@/lib/build-folder-tree";
 
 interface Project {
   id: number;
@@ -22,13 +19,17 @@ interface ProjectFile {
 interface FolderTreeProps {
   projects: Project[];
   projectFiles: ProjectFile[];
+  knowledgeFiles: ProjectFile[];
   selectedProjectId: number | null;
   selectedSection: "projects" | "knowledge" | null;
   selectedFolder: string | null;
+  projectFolders: string[];
+  knowledgeFolders: string[];
   onSelectProject: (projectId: number) => void;
   onSelectKnowledge: () => void;
   onSelectFolder: (folderPath: string | null) => void;
   onSelectFile: (fileId: number) => void;
+  onCreateFolder: (projectId: number) => void;
 }
 
 function FolderNodes({
@@ -75,26 +76,47 @@ function FolderNodes({
 export function FolderTree({
   projects,
   projectFiles,
+  knowledgeFiles,
   selectedProjectId,
   selectedSection,
   selectedFolder,
+  projectFolders,
+  knowledgeFolders,
   onSelectProject,
   onSelectKnowledge,
   onSelectFolder,
   onSelectFile,
+  onCreateFolder,
 }: FolderTreeProps) {
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
-  const folderTree = useMemo(() => {
-    if (!selectedProject || projectFiles.length === 0) return null;
-    return buildFolderTree(projectFiles, selectedProject.path);
-  }, [projectFiles, selectedProject]);
+  // Tree for the selected project
+  const projectFolderTree = useMemo(() => {
+    if (!selectedProject) return null;
+    return buildFolderTree(projectFiles, selectedProject.path, projectFolders);
+  }, [projectFiles, selectedProject, projectFolders]);
+
+  // Tree for Knowledge Base — always built, independent of selectedSection
+  const knowledgeFolderTree = useMemo(() => {
+    if (knowledgeFolders.length === 0 && knowledgeFiles.length === 0) return null;
+    if (knowledgeFiles.length > 0) {
+      const firstPath = knowledgeFiles[0].path;
+      const idx = firstPath.indexOf("/knowledge/");
+      if (idx !== -1) {
+        const prefix = firstPath.substring(0, idx + 11);
+        return buildFolderTree(knowledgeFiles, prefix, knowledgeFolders);
+      }
+    }
+    return buildFolderTree([], "", knowledgeFolders);
+  }, [knowledgeFiles, knowledgeFolders]);
 
   return (
     <div className="p-4 space-y-6">
       <div>
-        <div className="text-amber-accent text-xs font-bold tracking-[1.5px] mb-3 px-3">
-          PROJECTS
+        <div className="flex items-center justify-between mb-3 px-3">
+          <div className="text-amber-accent text-xs font-bold tracking-[1.5px]">
+            PROJECTS
+          </div>
         </div>
         <div className="space-y-1">
           {projects.map((project) => {
@@ -105,14 +127,15 @@ export function FolderTree({
                 label={project.name}
                 icon="📁"
                 active={isSelected && selectedFolder === null}
+                initialExpanded={isSelected}
                 onClick={() => {
                   onSelectProject(project.id);
                   onSelectFolder(null);
                 }}
               >
-                {isSelected && folderTree ? (
+                {isSelected && projectFolderTree ? (
                   <FolderNodes
-                    node={folderTree}
+                    node={projectFolderTree}
                     selectedFolder={selectedFolder}
                     onSelectFolder={onSelectFolder}
                     onSelectFile={onSelectFile}
@@ -131,15 +154,33 @@ export function FolderTree({
       </div>
 
       <div>
-        <div className="text-amber-accent text-xs font-bold tracking-[1.5px] mb-3 px-3">
-          KNOWLEDGE BASE
+        <div className="flex items-center justify-between mb-3 px-3">
+          <div className="text-amber-accent text-xs font-bold tracking-[1.5px]">
+            KNOWLEDGE BASE
+          </div>
+          <button
+            onClick={() => onCreateFolder(0)}
+            className="text-[10px] font-bold text-gray-500 hover:text-amber-accent transition-colors"
+          >
+            + FOLDER
+          </button>
         </div>
         <TreeNode
           label="All Knowledge"
           icon="📚"
           active={selectedSection === "knowledge"}
+          initialExpanded={selectedSection === "knowledge"}
           onClick={onSelectKnowledge}
-        />
+        >
+          {knowledgeFolderTree ? (
+            <FolderNodes
+              node={knowledgeFolderTree}
+              selectedFolder={selectedFolder}
+              onSelectFolder={onSelectFolder}
+              onSelectFile={onSelectFile}
+            />
+          ) : undefined}
+        </TreeNode>
       </div>
     </div>
   );

@@ -139,20 +139,36 @@ export async function syncBackup(
     await git.addConfig("user.name", "CtxNest");
   }
 
+  // Handle remote pull if remote_url is configured
+  if (project.remote_url) {
+    try {
+      const remotes = await git.getRemotes();
+      if (!remotes.find((r) => r.name === "origin")) {
+        await git.addRemote("origin", project.remote_url);
+      }
+      // Pull latest changes before syncing
+      await git.pull("origin", "main", { "--rebase": "true" }).catch(() => {
+        console.warn("Pull failed, proceeding with local changes");
+      });
+    } catch (error) {
+      console.warn("Git remote operations failed:", error);
+    }
+  }
+
   // Copy each reference file to backup directory
   for (const file of files) {
-    if (!file.source_path) {
+    if (!file.path) {
       continue;
     }
 
-    const fileName = file.source_path.split("/").pop() || "unknown";
+    const fileName = file.path.split("/").pop() || "unknown";
     const backupPath = join(backupDir, fileName);
 
     // Ensure subdirectory exists
     mkdirSync(dirname(backupPath), { recursive: true });
 
     // Copy file
-    copyFileSync(file.source_path, backupPath);
+    copyFileSync(file.path, backupPath);
     copiedPaths.push(backupPath);
   }
 
@@ -161,6 +177,15 @@ export async function syncBackup(
     const relativePaths = copiedPaths.map((p) => relative(dataDir, p));
     await git.add(relativePaths);
     await git.commit(`Backup sync for project: ${project.name}`, ["--no-verify"]);
+
+    // Push changes if remote_url is configured
+    if (project.remote_url) {
+      try {
+        await git.push("origin", "main");
+      } catch (error) {
+        console.warn("Git push failed:", error);
+      }
+    }
   }
 
   return copiedPaths;

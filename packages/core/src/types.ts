@@ -23,6 +23,7 @@ export interface ProjectRecord {
   slug: string;
   description: string | null;
   path: string | null;
+  remote_url: string | null;
   created_at: string;
 }
 

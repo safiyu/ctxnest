@@ -7,7 +7,8 @@ export interface FolderTreeNode {
 
 export function buildFolderTree(
   files: { id: number; title: string; path: string }[],
-  projectPath: string
+  projectPath: string,
+  emptyFolders: string[] = []
 ): FolderTreeNode {
   const root: FolderTreeNode = {
     name: "",
@@ -42,6 +43,23 @@ export function buildFolderTree(
     }
 
     current.files.push({ id: file.id, title: file.title, path: file.path });
+  }
+
+  // Inject empty folders
+  for (const folderPath of emptyFolders) {
+    const segments = folderPath.split("/");
+    let current = root;
+    let currentPath = "";
+
+    for (const segment of segments) {
+      currentPath = currentPath ? `${currentPath}/${segment}` : segment;
+      let child = current.children.find((c) => c.name === segment);
+      if (!child) {
+        child = { name: segment, path: currentPath, children: [], files: [] };
+        current.children.push(child);
+      }
+      current = child;
+    }
   }
 
   sortTree(root);

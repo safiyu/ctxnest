@@ -51,7 +51,7 @@ export function SearchDialog({ open, onClose, onSelectFile }: SearchDialogProps)
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         if (response.ok) {
           const data = await response.json();
-          setResults(data.results || []);
+          setResults(data || []);
           setSelectedIdx(0);
         }
       } catch (error) {

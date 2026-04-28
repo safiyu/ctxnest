@@ -6,6 +6,7 @@ interface Project {
   id: number;
   name: string;
   path: string;
+  remote_url: string | null;
   created_at: string;
 }
 

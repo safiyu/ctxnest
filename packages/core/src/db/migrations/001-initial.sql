@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS projects (
   slug TEXT NOT NULL UNIQUE,
   description TEXT,
   path TEXT,
+  remote_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -63,8 +64,6 @@ VALUES (1, 'Default User', NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
   title,
   content,
-  content='files',
-  content_rowid='id',
   tokenize='porter'
 );
 

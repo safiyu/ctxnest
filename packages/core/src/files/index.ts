@@ -4,10 +4,44 @@
  */
 
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { getDatabase } from "../db/index.js";
 import type { FileRecord, Destination, FileFilters, StorageType } from "../types.js";
+
+/**
+ * List all folders in a project (recursively)
+ */
+export function listProjectFolders(projectPath: string): string[] {
+  const folders: string[] = [];
+  
+  function scan(dir: string, currentRel: string) {
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (entry.startsWith(".") || entry === "node_modules") continue;
+      
+      const fullPath = join(dir, entry);
+      const relPath = currentRel ? join(currentRel, entry) : entry;
+      
+      try {
+        if (statSync(fullPath).isDirectory()) {
+          folders.push(relPath);
+          scan(fullPath, relPath);
+        }
+      } catch (e) {
+        // Skip files that might have been deleted during scan
+      }
+    }
+  }
+
+  try {
+    scan(projectPath, "");
+  } catch (e) {
+    console.error("Failed to scan project folders:", e);
+  }
+  
+  return folders;
+}
 
 export interface CreateFileOptions {
   title: string;
@@ -197,9 +231,8 @@ export function updateFile(id: number, content: string): FileRecord {
   updateStmt.run(contentHash, id);
 
   // Update FTS5 index
-  // FTS5 with content='' requires delete using special syntax
-  const deleteFtsStmt = db.prepare("INSERT INTO fts_index (fts_index, rowid, title, content) VALUES ('delete', ?, ?, ?)");
-  deleteFtsStmt.run(id, fileRecord.title, "");
+  const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+  deleteFtsStmt.run(id);
 
   const insertFtsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
   insertFtsStmt.run(id, fileRecord.title, content);
@@ -215,19 +248,22 @@ export function updateFile(id: number, content: string): FileRecord {
 export function deleteFile(id: number): void {
   const db = getDatabase();
 
-  // Get file info for FTS delete
-  const fileRecord = db.prepare("SELECT title FROM files WHERE id = ?").get(id) as { title: string } | undefined;
-  if (!fileRecord) {
-    throw new Error(`File not found: ${id}`);
-  }
-
-  // Delete from FTS5 index using special syntax for content='' tables
-  const deleteFtsStmt = db.prepare("INSERT INTO fts_index (fts_index, rowid, title, content) VALUES ('delete', ?, ?, ?)");
-  deleteFtsStmt.run(id, fileRecord.title, "");
+  // Delete from FTS5 index
+  const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+  deleteFtsStmt.run(id);
 
   // Delete from files table (CASCADE will handle file_tags and favorites)
   const deleteStmt = db.prepare("DELETE FROM files WHERE id = ?");
   deleteStmt.run(id);
+}
+
+/**
+ * Create a new folder in a project
+ */
+export function createFolder(projectPath: string, folderName: string): string {
+  const fullPath = join(projectPath, folderName);
+  mkdirSync(fullPath, { recursive: true });
+  return fullPath;
 }
 
 /**

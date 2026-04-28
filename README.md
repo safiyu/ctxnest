@@ -13,11 +13,14 @@ CtxNest is a markdown file manager designed to centralize your context files, do
 ## Features
 
 - Three-pane layout UI for efficient file browsing and editing
-- Model Context Protocol (MCP) server with 13 tools — works with Claude Code, Gemini CLI, Codex, Antigravity, and more
-- Full-text search powered by SQLite FTS5
+- Model Model Context Protocol (MCP) server with 13 tools — works with Claude Code, Gemini CLI, Codex, Antigravity, and more
+- **Collaboration & Remote Sync**: Sync context across teams with Git-based push/pull/rebase support
+- **Folder Management**: Create and organize context files into hierarchical folder structures
+- **Dynamic Context Creation**: Create new context files directly in the UI for Knowledge Base or Projects
+- Full-text search powered by SQLite FTS5 (optimized internal content)
 - Project-based organization with support for external project references
 - Git-based versioning and backup synchronization
-- WYSIWYG markdown editor with Tiptap v2
+- WYSIWYG markdown editor with Tiptap v2 and **GFM table support**
 - Beautiful syntax highlighting for code blocks using Shiki
 - Light and dark theme modes with warm amber accent
 - Resizable panes and keyboard navigation
@@ -240,7 +243,9 @@ The web app exposes REST API endpoints:
 | DELETE | `/api/files/:id` | Delete a file |
 | GET | `/api/projects` | List all registered projects |
 | POST | `/api/projects` | Register a new project |
-| POST | `/api/projects/:id/sync` | Sync backup for a project |
+| PATCH | `/api/projects/:id` | Update project (e.g. set remote_url) |
+| POST | `/api/projects/:id/sync` | Sync backup and Git remote for a project |
+| POST | `/api/folders` | Create a new directory in a project |
 | GET | `/api/tags` | List all tags |
 | POST | `/api/files/:id/tags` | Add tags to a file |
 | DELETE | `/api/files/:id/tags` | Remove tags from a file |

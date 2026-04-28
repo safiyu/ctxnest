@@ -1,5 +1,6 @@
 export { createDatabase, getDatabase, closeDatabase } from "./db/index.js";
-export { createFile, readFile, updateFile, deleteFile, listFiles, moveFile } from "./files/index.js";
+import { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, createFolder, listProjectFolders } from "./files/index.js";
+export { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, createFolder, listProjectFolders };
 export {
   addTags, removeTags, setFavorite, search,
   registerProject, discoverFiles, listTags, listProjects,

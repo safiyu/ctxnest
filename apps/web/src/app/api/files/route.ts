@@ -6,12 +6,16 @@ import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 export async function GET(req: NextRequest) {
   ensureDbInitialized();
   const { searchParams } = req.nextUrl;
-  const projectId = searchParams.get("projectId");
+  const projectId = searchParams.get("project_id");
   const tag = searchParams.get("tag");
+  const favorite = searchParams.get("favorite");
+  const folder = searchParams.get("folder");
 
   const filters: FileFilters = {};
   if (projectId) filters.project_id = parseInt(projectId, 10);
   if (tag) filters.tag = tag;
+  if (favorite) filters.favorite = favorite === "true";
+  if (folder) filters.folder = folder;
 
   const files = listFiles({ dataDir: DATA_DIR, filters });
   return NextResponse.json(files);

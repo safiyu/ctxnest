@@ -115,17 +115,18 @@ export function search(filters: SearchFilters): FileRecordWithRank[] {
 export function registerProject(
   name: string,
   path: string,
-  description?: string
+  description?: string,
+  remoteUrl?: string
 ): ProjectRecord {
   const db = getDatabase();
 
   const slug = slugify(name);
   const insertStmt = db.prepare(`
-    INSERT INTO projects (name, slug, path, description)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO projects (name, slug, path, description, remote_url)
+    VALUES (?, ?, ?, ?, ?)
   `);
 
-  const result = insertStmt.run(name, slug, path, description || null);
+  const result = insertStmt.run(name, slug, path, description || null, remoteUrl || null);
   const projectId = Number(result.lastInsertRowid);
 
   const projectRecord = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as ProjectRecord;

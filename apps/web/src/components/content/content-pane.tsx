@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { MarkdownViewer } from "./markdown-viewer";
 import { MarkdownEditor } from "./markdown-editor";
+import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
 interface File {
   id: number;
@@ -19,15 +20,18 @@ interface File {
 
 interface ContentPaneProps {
   fileId: number | null;
+  onDelete: (id: number) => Promise<void>;
 }
 
-export function ContentPane({ fileId }: ContentPaneProps) {
+export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
   const [file, setFile] = useState<File | null>(null);
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [viewSource, setViewSource] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (fileId === null) {
@@ -90,6 +94,17 @@ export function ContentPane({ fileId }: ContentPaneProps) {
       console.error("Failed to save file:", error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!file) return;
+    setDeleting(true);
+    try {
+      await onDelete(file.id);
+      setDeleteDialogOpen(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -164,6 +179,12 @@ export function ContentPane({ fileId }: ContentPaneProps) {
                 >
                   {viewSource ? "View" : "Source"}
                 </button>
+                <button
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="px-3 py-1.5 text-sm bg-red-900/30 text-red-400 border border-red-500/20 rounded hover:bg-red-900/50 transition-colors btn-press"
+                >
+                  Delete
+                </button>
               </>
             )}
 
@@ -202,6 +223,14 @@ export function ContentPane({ fileId }: ContentPaneProps) {
           </div>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        title={file.title}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        loading={deleting}
+      />
     </div>
   );
 }
