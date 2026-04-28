@@ -34,6 +34,32 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 - **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
 - **Time Travel**: Built-in Git versioning for every single edit, even in your personal Knowledge Base.
 
+## 🤖 AI Agent Capabilities
+
+CtxNest transforms your AI assistant from a simple chatbot into a high-context collaborator:
+
+1.  **Dynamic Context**: Query precise documentation without token bloat. 
+    *   *Prompt: "Find auth system notes in CtxNest."*
+2.  **Two-Way Sync**: Agents write research and plans directly to your version-controlled vault.
+    *   *Prompt: "Save this technical migration plan to CtxNest."*
+3.  **Time-Travel**: Analyze documentation evolution via built-in Git history.
+    *   *Prompt: "Compare today's architecture notes with last week's version."*
+4.  **Auto-Indexing**: Agents keep their knowledge map updated automatically as you add files.
+    *   *Prompt: "Discover and index any new markdown files in the docs/ folder."*
+5.  **Global Patterns**: Apply your personal "Global Vault" standards to any local project.
+    *   *Prompt: "Use the coding standards from my personal Knowledge Base for this fix."*
+6.  **Live Awareness**: Agents instantly "see" your local documentation edits via the file watcher.
+    *   *Prompt: "I just updated the API schema on disk, please re-scan the context."*
+
+## 🚀 A Local-First RAG Alternative
+
+CtxNest is a high-performance alternative to traditional cloud-based RAG (Retrieval-Augmented Generation) systems, specifically optimized for developer workflows:
+
+-   **Deterministic Retrieval**: Unlike fuzzy vector embeddings that can "hallucinate" relevance, CtxNest uses **SQLite FTS5**. This ensures 100% precision for technical terms, class names, and code snippets.
+-   **Context-Rich Versioning**: Most RAG systems only know what your docs look like *now*. CtxNest is **Git-backed**, allowing agents to retrieve and analyze the history of your technical decisions.
+-   **Zero Token Waste**: Agents use the CtxNest API to "research" and "browse" your documentation first. This ensures they only pull the most relevant files into their context window, significantly reducing LLM costs.
+-   **Privacy by Default**: Your "RAG data" never leaves your local machine or your private Git vault. No third-party vector clouds or external indexing services are required.
+
 ## 🐳 Quick Start (Docker)
 
 The fastest way to deploy CtxNest is using Docker Compose:
@@ -94,23 +120,6 @@ If you are running CtxNest in Docker, use `docker exec` to connect:
   }
 }
 ```
-
-## 🤖 AI Agent Capabilities
-
-CtxNest transforms your AI assistant from a simple chatbot into a high-context collaborator:
-
-1.  **Dynamic Context**: Query precise documentation without token bloat. 
-    *   *Prompt: "Find auth system notes in CtxNest."*
-2.  **Two-Way Sync**: Agents write research and plans directly to your version-controlled vault.
-    *   *Prompt: "Save this technical migration plan to CtxNest."*
-3.  **Time-Travel**: Analyze documentation evolution via built-in Git history.
-    *   *Prompt: "Compare today's architecture notes with last week's version."*
-4.  **Auto-Indexing**: Agents keep their knowledge map updated automatically as you add files.
-    *   *Prompt: "Discover and index any new markdown files in the docs/ folder."*
-5.  **Global Patterns**: Apply your personal "Global Vault" standards to any local project.
-    *   *Prompt: "Use the coding standards from my personal Knowledge Base for this fix."*
-6.  **Live Awareness**: Agents instantly "see" your local documentation edits via the file watcher.
-    *   *Prompt: "I just updated the API schema on disk, please re-scan the context."*
 
 ## ⚙️ Configuration
 
