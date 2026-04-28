@@ -1,0 +1,14 @@
+services:
+  ctxnest:
+    build: .
+    container_name: ctxnest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ctxnest-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - CTXNEST_DATA_DIR=/app/data
+      - CTXNEST_DB_PATH=/app/data/ctxnest.db
+    restart: always
