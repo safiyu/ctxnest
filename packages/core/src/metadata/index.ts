@@ -134,6 +134,33 @@ export function registerProject(
 }
 
 /**
+ * Unregister a project and remove all its file metadata
+ */
+export function unregisterProject(projectId: number): void {
+  const db = getDatabase();
+
+  db.transaction(() => {
+    // 1. Get all file IDs associated with the project
+    const files = db.prepare("SELECT id FROM files WHERE project_id = ?").all(projectId) as { id: number }[];
+    const fileIds = files.map(f => f.id);
+
+    if (fileIds.length > 0) {
+      // 2. Delete from FTS index
+      const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+      for (const id of fileIds) {
+        deleteFtsStmt.run(id);
+      }
+
+      // 3. Delete from files (file_tags and favorites will cascade delete)
+      db.prepare("DELETE FROM files WHERE project_id = ?").run(projectId);
+    }
+
+    // 4. Delete the project
+    db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
+  })();
+}
+
+/**
  * Discover markdown files in a project's external path
  */
 export function discoverFiles(projectId: number, dataDir: string): FileRecord[] {

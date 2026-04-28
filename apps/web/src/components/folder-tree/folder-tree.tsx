@@ -120,7 +120,7 @@ export function FolderTree({
   // Tree for Knowledge Base
   const knowledgeFolderTree = useMemo(() => {
     if (knowledgeFolders.length === 0 && knowledgeFiles.length === 0) return null;
-    return buildFolderTree(knowledgeFiles, knowledgeBasePath, knowledgeFolders);
+    return buildFolderTree(knowledgeFiles, knowledgeBasePath, knowledgeFolders, false);
   }, [knowledgeFiles, knowledgeFolders, knowledgeBasePath]);
 
   return (

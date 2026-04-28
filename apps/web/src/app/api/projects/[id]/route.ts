@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDatabase } from "@ctxnest/core";
+import { getDatabase, unregisterProject } from "@ctxnest/core";
 import { ensureDbInitialized } from "@/lib/db-init";
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  ensureDbInitialized();
+  const { id } = await params;
+  try {
+    unregisterProject(parseInt(id, 10));
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
 
 export async function PATCH(
   req: NextRequest,

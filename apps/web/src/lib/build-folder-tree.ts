@@ -3,12 +3,14 @@ export interface FolderTreeNode {
   path: string;
   children: FolderTreeNode[];
   files: { id: number; title: string; path: string }[];
+  isExplicit?: boolean;
 }
 
 export function buildFolderTree(
   files: { id: number; title: string; path: string }[],
   projectPath: string,
-  emptyFolders: string[] = []
+  emptyFolders: string[] = [],
+  prune: boolean = true
 ): FolderTreeNode {
   const root: FolderTreeNode = {
     name: "",
@@ -63,7 +65,9 @@ export function buildFolderTree(
   }
 
   // Prune nodes that don't have files or non-empty children
-  pruneEmptyNodes(root);
+  if (prune) {
+    pruneEmptyNodes(root);
+  }
 
   sortTree(root);
   return root;
@@ -74,7 +78,7 @@ function pruneEmptyNodes(node: FolderTreeNode): boolean {
   node.children = node.children.filter((child) => pruneEmptyNodes(child));
 
   // A node is kept if it has files OR has at least one kept child
-  return node.files.length > 0 || node.children.length > 0;
+  return node.files.length > 0 || node.children.length > 0 || !!node.isExplicit;
 }
 
 function sortTree(node: FolderTreeNode): void {

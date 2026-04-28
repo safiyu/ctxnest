@@ -33,6 +33,7 @@ interface FileListProps {
   selectedSection?: "projects" | "knowledge" | null;
   basePath?: string | null;
   onSync: () => void;
+  onUnregisterProject?: () => void;
   onSyncAll: () => Promise<void>;
   globalRemoteUrl: string | null;
   onUpdateRemote: (url: string) => Promise<void>;
@@ -50,6 +51,7 @@ export function FileList({
   selectedSection,
   basePath,
   onSync,
+  onUnregisterProject,
   onSyncAll,
   globalRemoteUrl,
   onUpdateRemote,
@@ -115,7 +117,9 @@ export function FileList({
     <div className="flex flex-col h-full">
       <SyncPanel
         remoteUrl={globalRemoteUrl}
+        projectName={selectedProject?.name}
         onSync={selectedProject ? async () => onSync() : undefined}
+        onUnregister={selectedProject ? async () => onUnregisterProject?.() : undefined}
         onSyncAll={onSyncAll}
         onUpdateRemote={onUpdateRemote}
       />

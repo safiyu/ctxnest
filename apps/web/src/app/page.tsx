@@ -57,7 +57,30 @@ export default function HomePage() {
     fetchGlobalRemote();
   }, [fetchGlobalRemote]);
 
-  const { projects, loading: projectsLoading } = useProjects();
+  const { projects, loading: projectsLoading, refresh: refreshProjects } = useProjects();
+
+  const handleUnregisterProject = async () => {
+    if (!selectedProjectId) return;
+    try {
+      const response = await fetch(`/api/projects/${selectedProjectId}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setSelectedProjectId(null);
+        setSelectedSection(null);
+        setSelectedFolder(null);
+        setSelectedFileId(null);
+        sessionStorage.removeItem("selectedSection");
+        sessionStorage.removeItem("selectedProjectId");
+        refreshProjects();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to unregister project");
+      }
+    } catch (error) {
+      console.error("Failed to unregister project:", error);
+    }
+  };
 
   const { files, loading: filesLoading, refresh: refreshFiles } = useFiles({
     project_id:
@@ -330,6 +353,7 @@ export default function HomePage() {
             selectedSection={selectedSection}
             basePath={selectedSection === "projects" ? projectBasePath : knowledgeBasePath}
             onSync={handleSync}
+            onUnregisterProject={handleUnregisterProject}
             onSyncAll={handleSyncAll}
             globalRemoteUrl={globalRemoteUrl}
             onUpdateRemote={handleUpdateGlobalRemote}

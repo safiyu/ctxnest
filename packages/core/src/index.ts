@@ -3,7 +3,7 @@ import { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, crea
 export { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, createFolder, deleteFolder, listProjectFolders };
 export {
   addTags, removeTags, setFavorite, search,
-  registerProject, discoverFiles, listTags, listProjects,
+  registerProject, unregisterProject, discoverFiles, listTags, listProjects,
 } from "./metadata/index.js";
 export { commitFile, getHistory, getDiff, restoreVersion, syncBackup, getGlobalRemote, setGlobalRemote } from "./git/index.js";
 export { createFileWatcher, type WatcherEvent } from "./watcher/index.js";

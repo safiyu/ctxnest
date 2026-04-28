@@ -13,6 +13,7 @@ import {
   setFavorite,
   search,
   registerProject,
+  unregisterProject,
   discoverFiles,
   listTags,
   listProjects,
@@ -196,6 +197,36 @@ describe("Metadata Module", () => {
     expect(project.description).toBe("A test project");
     expect(project.id).toBeDefined();
     expect(project.created_at).toBeDefined();
+  });
+
+  it("unregisterProject: removes project and associated files", async () => {
+    // 1. Create a project and some files
+    const project = registerProject("Unregister Test", "/tmp/unregister-test");
+    
+    // Create a mock file in the project
+    const db = getDatabase();
+    const fileResult = db.prepare(
+      "INSERT INTO files (path, title, project_id, storage_type) VALUES (?, ?, ?, 'reference')"
+    ).run("/tmp/unregister-test/file.md", "Project File", project.id);
+    const fileId = Number(fileResult.lastInsertRowid);
+    
+    // Index it
+    db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(fileId, "Project File", "Test content");
+
+    // 2. Unregister
+    unregisterProject(project.id);
+
+    // 3. Verify project is gone
+    const projectCheck = db.prepare("SELECT * FROM projects WHERE id = ?").get(project.id);
+    expect(projectCheck).toBeUndefined();
+
+    // 4. Verify files are gone
+    const fileCheck = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId);
+    expect(fileCheck).toBeUndefined();
+
+    // 5. Verify FTS is gone
+    const ftsCheck = search({ query: "Project" });
+    expect(ftsCheck).toHaveLength(0);
   });
 
   it("discoverFiles: finds markdown files in project directory", async () => {
