@@ -13,20 +13,25 @@ CtxNest is a markdown file manager designed to centralize your context files, do
 ## Features
 
 - Three-pane layout UI for efficient file browsing and editing
-- Model Model Context Protocol (MCP) server with 13 tools — works with Claude Code, Gemini CLI, Codex, Antigravity, and more
+- **Model Context Protocol (MCP) server** with 13 tools — works with Claude Code, Gemini CLI, Cursor, and more
 - **Collaboration & Remote Sync**: Sync context across teams with Git-based push/pull/rebase support
-- **Folder Management**: Create and organize context files into hierarchical folder structures
+- **Advanced Folder Management**: 
+  - Create and organize context files into hierarchical structures
+  - Delete empty folders directly from the UI with safety confirmations
+  - Persistent folders even when empty of context files
+- **Refined Premium Aesthetics**: 
+  - Cohesive branding with rust-colored (#D4903A) visual identity
+  - Optimized light and dark modes for high readability
+  - Modern golden SVG iconography for file identification
 - **Dynamic Context Creation**: Create new context files directly in the UI for Knowledge Base or Projects
 - Full-text search powered by SQLite FTS5 (optimized internal content)
 - Project-based organization with support for external project references
 - Git-based versioning and backup synchronization
 - WYSIWYG markdown editor with Tiptap v2 and **GFM table support**
 - Beautiful syntax highlighting for code blocks using Shiki
-- Light and dark theme modes with warm amber accent
 - Resizable panes and keyboard navigation
 - Real-time file watching and WebSocket updates
 - Tag management and favorites system
-- File system watcher for automatic re-indexing
 
 ## Screenshots
 
@@ -369,25 +374,16 @@ server.tool(
 4. Rebuild the MCP server: `cd apps/mcp && pnpm build`
 5. Restart Claude Code to pick up the new tool
 
-## Theme
+## UI & Aesthetics
 
-CtxNest features a warm, professional theme with both light and dark modes:
+CtxNest features a high-contrast, premium interface designed for clarity and focus:
 
-**Colors:**
-- Primary accent: Warm amber (#D4903A)
-- Dark mode backgrounds: Deep black (#1A1A1A)
-- Light mode backgrounds: White (#FFFFFF)
-- Header bar: Black (#1A1A1A) across both modes
-
-**Usage:**
-The amber accent is used throughout for:
-- Selected items and active borders
-- Buttons and interactive elements
-- Favorite stars
-- Tags and badges
-- Folder tree highlights
-
-The theme automatically detects your system preference and provides a manual toggle for switching between light and dark modes. Both modes maintain the same warm amber accent for consistency.
+- **Branding**: Solid rust (#D4903A) visual identity inspired by industrial precision.
+- **Themes**:
+  - **Light Mode**: High-readability dark fonts and sharp borders for daylight environments.
+  - **Dark Mode**: Soft charcoal and obsidian tones to reduce eye strain during long coding sessions.
+- **Iconography**: Custom golden SVG icons for consistent file identification across the tree and file lists.
+- **Interactions**: Smooth transitions, subtle hover effects, and clear visual feedback for all destructive actions.
 
 ## License
 
