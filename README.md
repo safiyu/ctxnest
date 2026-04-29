@@ -1,10 +1,8 @@
 <p align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180">
 </p>
-
 <h1 align="center">CtxNest v2.0</h1>
-
-<p align="center">The Portable Intelligence Layer for Your Projects & Knowledge Base</p>
+<p align="center"><b>The Context Engine for Agentic Workflows</b></p>
 
 ---
 
