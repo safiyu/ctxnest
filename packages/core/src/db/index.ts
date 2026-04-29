@@ -4,7 +4,7 @@
  */
 
 import Database from "better-sqlite3";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +31,8 @@ export function createDatabase(dbPath: string): Database.Database {
   if (db) {
     return db;
   }
+
+  mkdirSync(dirname(dbPath), { recursive: true });
 
   db = new Database(dbPath);
   globalThis.__ctxnestDb = db;
