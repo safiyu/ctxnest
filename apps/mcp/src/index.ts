@@ -21,10 +21,35 @@ import {
   syncBackup,
 } from "@ctxnest/core";
 import { join } from "node:path";
+import { statSync } from "node:fs";
 
 // Initialize database from environment variables or defaults
 const dataDir = process.env.CTXNEST_DATA_DIR || join(process.cwd(), "data");
 const dbPath = process.env.CTXNEST_DB_PATH || join(dataDir, "ctxnest.db");
+
+/**
+ * Annotate a file record with size_bytes + est_tokens so the agent can
+ * budget its context window before pulling the full content.
+ *
+ * - If `content` is present, count from it directly (chars/4 heuristic;
+ *   ~10% off for English/code, free, no tokenizer dependency).
+ * - Otherwise, stat the file path and use bytes/4.
+ *
+ * Best-effort: missing files report nulls instead of throwing.
+ */
+function annotateTokens<T extends { path?: string; content?: string }>(rec: T): T & { size_bytes: number | null; est_tokens: number | null } {
+  let size_bytes: number | null = null;
+  if (typeof rec.content === "string") {
+    // utf-8 byte length is a closer proxy than char length for non-ASCII
+    size_bytes = Buffer.byteLength(rec.content, "utf8");
+  } else if (rec.path) {
+    try {
+      size_bytes = statSync(rec.path).size;
+    } catch {}
+  }
+  const est_tokens = size_bytes !== null ? Math.max(1, Math.ceil(size_bytes / 4)) : null;
+  return { ...rec, size_bytes, est_tokens };
+}
 
 // Create database instance
 createDatabase(dbPath);
@@ -58,7 +83,7 @@ server.tool(
       dataDir,
     });
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(annotateTokens(result), null, 2) }],
     };
   }
 );
@@ -66,14 +91,14 @@ server.tool(
 // Register tool: read_file
 server.tool(
   "read_file",
-  "Read a file by its ID",
+  "Read a file by its ID. Response includes est_tokens (heuristic) so the agent can budget context window usage before pulling the full content.",
   {
     id: z.number().describe("File ID"),
   },
   async ({ id }) => {
     const result = readFile(id);
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(annotateTokens(result), null, 2) }],
     };
   }
 );
@@ -89,7 +114,7 @@ server.tool(
   async ({ id, content }) => {
     const result = await updateFile(id, content, dataDir);
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify(annotateTokens(result), null, 2) }],
     };
   }
 );
@@ -131,8 +156,10 @@ server.tool(
     if (offset !== undefined) filters.offset = offset;
 
     const result = listFiles({ dataDir, filters });
+    const annotated = result.map(annotateTokens);
+    const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify({ files: annotated, total_est_tokens }, null, 2) }],
     };
   }
 );
@@ -154,8 +181,10 @@ server.tool(
     if (favorite !== undefined) filters.favorite = favorite;
 
     const result = search(filters);
+    const annotated = result.map(annotateTokens);
+    const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
     return {
-      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+      content: [{ type: "text", text: JSON.stringify({ matches: annotated, total_est_tokens }, null, 2) }],
     };
   }
 );
@@ -251,6 +280,8 @@ server.tool(
     }
     const project = registerProject(name, path, description);
     const discoveredFiles = discoverFiles(project.id, dataDir);
+    const annotated = discoveredFiles.map(annotateTokens);
+    const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
     return {
       content: [
         {
@@ -258,8 +289,9 @@ server.tool(
           text: JSON.stringify(
             {
               project,
-              discovered_files_count: discoveredFiles.length,
-              discovered_files: discoveredFiles,
+              discovered_files_count: annotated.length,
+              total_est_tokens,
+              discovered_files: annotated,
             },
             null,
             2

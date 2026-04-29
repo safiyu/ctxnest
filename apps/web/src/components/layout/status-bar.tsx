@@ -116,7 +116,7 @@ export function StatusBar({
     : status === "error" ? "sync failed"
     : status === "no-remote" ? "no remote configured"
     : status === "ok" ? `synced ${formatRelative(lastDoneAt)}`
-    : lastDoneAt ? `synced ${formatRelative(lastDoneAt)}` : "idle";
+    : lastDoneAt ? `synced ${formatRelative(lastDoneAt)}` : "ready";
 
   const remoteLabel = globalRemoteUrl
     ? globalRemoteUrl.replace(/^https?:\/\//, "").replace(/\.git$/, "")
@@ -138,35 +138,9 @@ export function StatusBar({
           <span className="truncate max-w-[260px]">{remoteLabel}</span>
         </>
       )}
-      {selectedProjectName && onSyncProject && (
-        <button
-          onClick={async () => {
-            // Optimistic: flip the bar to "syncing" right away so the user
-            // sees feedback even if the WS event takes a moment (or never
-            // arrives in cases where the channel is down). The real
-            // sync:start / sync:stage events will overwrite this within
-            // milliseconds when the channel is healthy.
-            setStatus("syncing");
-            setStage("preparing");
-            try {
-              await onSyncProject();
-            } catch {
-              // Errors flow through the WS sync:error event; if WS is
-              // down, also reset locally so the bar isn't stuck.
-              setStatus(globalRemoteUrl ? "idle" : "no-remote");
-              setStage(null);
-            }
-          }}
-          disabled={status === "syncing"}
-          className="ml-auto px-2 py-0.5 rounded bg-[var(--accent)] text-black font-bold hover:opacity-90 disabled:opacity-50 truncate max-w-[180px]"
-          title={`Sync ${selectedProjectName}`}
-        >
-          Sync {selectedProjectName}
-        </button>
-      )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`${selectedProjectName && onSyncProject ? "" : "ml-auto"} px-2 py-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)]`}
+        className="ml-auto px-2 py-0.5 rounded text-[var(--accent)] hover:bg-[var(--bg-tertiary)]"
         title="Open sync menu"
       >
         Sync ▾

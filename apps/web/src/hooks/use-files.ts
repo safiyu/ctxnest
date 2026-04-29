@@ -79,6 +79,7 @@ export function useFiles(options: UseFilesOptions = {}): UseFilesReturn {
   }, []);
 
   useEffect(() => {
+    setFiles([]);
     fetchFiles();
     return () => abortRef.current?.abort();
   }, [options.project_id, options.tag, options.favorite, options.folder, fetchFiles]);

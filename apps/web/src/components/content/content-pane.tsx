@@ -246,6 +246,14 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
           ) : (
             <>
               {file?.updated_at && <span>edited {formatRelative(file.updated_at)}</span>}
+              {file?.content && (
+                <>
+                  <span className="text-[var(--border)]">·</span>
+                  <span title={`~${Math.max(1, Math.ceil(file.content.length / 4)).toLocaleString()} tokens (heuristic: chars/4)`}>
+                    ~{formatTokens(Math.max(1, Math.ceil(file.content.length / 4)))} tok
+                  </span>
+                </>
+              )}
               <button
                 onClick={() => setDeleteDialogOpen(true)}
                 className="hover:text-[var(--danger)]"
@@ -338,4 +346,11 @@ function formatRelative(iso?: string): string {
   if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
   return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function formatTokens(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10_000) return `${(n / 1000).toFixed(1)}k`;
+  if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
 }

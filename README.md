@@ -26,9 +26,10 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 ## Key Features
 
 - **"Sync All" Architecture**: One-click global synchronization across all your registered projects.
+- **Live Sync Status**: An ambient status bar streams git stages (`staging local`, `pulling remote`, `pushing`) in real time over WebSockets so you always know what the engine is doing.
 - **Git Wizard Integration**: A seamless Git authentication flow supporting SSH, HTTPS (PAT), and CLI auth paths.
-
-- **Native MCP Integration**: Plug-and-play support for all modern AI coding tools.
+- **Native MCP Integration**: Plug-and-play support for all modern AI coding tools. Every file-returning tool reports an `est_tokens` budget so agents can plan context-window usage before pulling content.
+- **Token Estimation**: Per-file and per-folder token counts (heuristic: bytes/4) shown in the file list and content header — see at a glance what a folder will cost before bundling it for an LLM.
 - **Dual-Brain Architecture**: Segregate project-specific context from your personal Knowledge Base.
 - **Obsidian-Chic Aesthetics**: High-contrast amber/rust identity (#D4903A) optimized for deep focus.
 - **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
@@ -271,6 +272,20 @@ If CtxNest is running in the Docker container from Quick Start, use `docker exec
 ```
 
 `-i` keeps stdin open (required for the stdio transport). `ctxnest` is the `container_name` from `docker-compose.yml` — change it if you renamed the container.
+
+### Tool response shape
+
+Every file-returning tool annotates its response with `size_bytes` and `est_tokens` (heuristic: bytes/4) so agents can budget their context window before pulling content. List-style tools also carry a `total_est_tokens` summary.
+
+| Tool | Response shape |
+| :--- | :--- |
+| `read_file`, `create_file`, `update_file` | `{ ...file, size_bytes, est_tokens }` |
+| `list_files` | `{ files: [...annotated], total_est_tokens }` |
+| `search` | `{ matches: [...annotated], total_est_tokens }` |
+| `register_project` | `{ project, discovered_files_count, total_est_tokens, discovered_files: [...annotated] }` |
+
+> [!NOTE]
+> `list_files` and `search` previously returned bare arrays. Clients that pre-parsed the array directly need to read `.files` / `.matches` instead.
 
 ## Configuration
 

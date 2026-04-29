@@ -17,6 +17,8 @@ interface File {
   updated_at: string;
   created_at: string;
   project_id?: number;
+  size_bytes?: number | null;
+  est_tokens?: number | null;
 }
 
 type SortBy = "name" | "updated_at" | "created_at";
@@ -34,6 +36,9 @@ interface FileListProps {
   onSync: () => void;
   onUnregisterProject?: () => void;
   onDeleteFolder?: () => void;
+  /** True while the files list is being fetched. Used to show a skeleton
+   *  instead of the misleading "folder is empty" state during initial load. */
+  loading?: boolean;
 }
 
 export function FileList({
@@ -49,41 +54,50 @@ export function FileList({
   onSync,
   onUnregisterProject,
   onDeleteFolder,
+  loading,
 }: FileListProps) {
   const [filter, setFilter] = useState("");
 
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
-    if (selectedFolder) {
-      // Use explicit basePath if available (from FolderTree/API)
-      if (basePath) {
-        const normalizedBasePath = basePath.endsWith("/") ? basePath : basePath + "/";
-        const folderPrefix = normalizedBasePath + selectedFolder + "/";
-        result = result.filter((f) => f.path.startsWith(folderPrefix));
-      } else if (selectedProject?.path) {
-        // Fallback for projects if basePath not passed
-        const normalizedProjectPath = selectedProject.path.endsWith("/")
-          ? selectedProject.path
-          : selectedProject.path + "/";
-        const folderPrefix = normalizedProjectPath + selectedFolder + "/";
-        result = result.filter((f) => f.path.startsWith(folderPrefix));
-      } else {
-        // Legacy fallback for knowledge base
-        result = result.filter((f) => {
-          const parts = f.path.split("/knowledge/");
-          if (parts.length > 1) {
-            return parts[1].startsWith(selectedFolder + "/");
+    // Branch on selectedSection FIRST. The previous version inferred mode
+    // from path-data presence, which on hard-refresh races (basePath +
+    // selectedProject?.path both null while async hooks settle) fell into
+    // the KB legacy fallback even when the user was in projects mode —
+    // producing a false "folder is empty" until back-and-forth clicks
+    // gave the data time to load.
+    if (selectedSection === "projects") {
+      // Project mode — narrow to the project's files first.
+      if (selectedProject) {
+        result = result.filter((f) => f.project_id === selectedProject.id);
+        if (selectedFolder) {
+          const base = basePath || selectedProject.path;
+          if (base) {
+            const normalizedBase = base.endsWith("/") ? base : base + "/";
+            const folderPrefix = normalizedBase + selectedFolder + "/";
+            result = result.filter((f) => f.path.startsWith(folderPrefix));
           }
-          return false;
-        });
+          // Path data not loaded yet: stay on the project-wide list rather
+          // than narrowing to nothing. The folder filter applies on the
+          // next render once useFolders/useProjects resolve.
+        }
+      } else {
+        // selectedProjectId set but the project record hasn't loaded yet —
+        // show nothing rather than wrong things.
+        result = [];
       }
-    } else if (selectedProject?.path) {
-      // Root of a project
-      result = result.filter((f) => f.project_id === selectedProject.id);
-    } else {
-      // Root of knowledge base (legacy logic)
+    } else if (selectedSection === "knowledge") {
       result = result.filter((f) => !f.project_id);
+      if (selectedFolder && basePath) {
+        const normalizedBase = basePath.endsWith("/") ? basePath : basePath + "/";
+        const folderPrefix = normalizedBase + selectedFolder + "/";
+        result = result.filter((f) => f.path.startsWith(folderPrefix));
+      }
+      // basePath missing: stay on the KB-wide list (same rationale as above).
+    } else {
+      // No section selected.
+      result = [];
     }
 
     // Sort files
@@ -116,7 +130,13 @@ export function FileList({
   return (
     <div className="flex flex-col h-full">
       <div className="px-3 py-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)]">
-        <span>{filteredAndSorted.length} {filteredAndSorted.length === 1 ? "file" : "files"}</span>
+        <span>
+          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "file" : "files"}
+          {(() => {
+            const total = filteredAndSorted.reduce((sum, f) => sum + (f.est_tokens ?? 0), 0);
+            return total > 0 ? ` · ~${formatTokens(total)} tok` : "";
+          })()}
+        </span>
         <select
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as SortBy)}
@@ -143,12 +163,32 @@ export function FileList({
               >
                 {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-[var(--accent)]" />}
                 <div className="text-[14px] text-[var(--text-primary)] font-medium truncate">{file.title}</div>
-                <div className="text-[11px] font-mono text-[var(--text-secondary)] mt-0.5">
-                  {formatRelative(file.updated_at)}
+                <div className="text-[11px] font-mono text-[var(--text-secondary)] mt-0.5 flex items-center gap-2">
+                  <span>{formatRelative(file.updated_at)}</span>
+                  {file.est_tokens != null && (
+                    <>
+                      <span className="text-[var(--border)]">·</span>
+                      <span title={`~${file.est_tokens.toLocaleString()} tokens (heuristic: bytes/4)`}>
+                        ~{formatTokens(file.est_tokens)} tok
+                      </span>
+                    </>
+                  )}
                 </div>
               </button>
             );
           })
+        ) : loading || (selectedSection === "projects" && !selectedProject) ? (
+          // Skeleton: prevents the misleading "folder is empty" flash while
+          // the files list is mid-fetch. Render a few placeholder rows that
+          // match the real row layout (title line + meta line).
+          <div aria-label="Loading files" role="status">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="px-3 py-2 border-b border-[var(--bg-tertiary)]">
+                <div className="skeleton h-3.5" style={{ width: `${60 + ((i * 13) % 30)}%` }} />
+                <div className="skeleton h-2.5 mt-2" style={{ width: `${30 + ((i * 7) % 20)}%` }} />
+              </div>
+            ))}
+          </div>
         ) : !selectedSection ? (
           <div className="flex flex-col items-center justify-center py-16 text-[#475569] dark:text-[#94A3B8] gap-4">
             <span className="text-6xl opacity-30 dark-icon">📂</span>
@@ -168,7 +208,7 @@ export function FileList({
                 This folder doesn't contain any indexed context files.
               </p>
             </div>
-            
+
             {selectedFolder && onDeleteFolder && (
               <div className="mt-6 flex flex-col items-center gap-3">
                 <div className="h-px w-16 bg-[var(--border)]" />
@@ -197,4 +237,11 @@ function formatRelative(iso?: string): string {
   if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
   return `${Math.floor(sec / 86400)}d ago`;
+}
+
+function formatTokens(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10_000) return `${(n / 1000).toFixed(1)}k`;
+  if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
 }

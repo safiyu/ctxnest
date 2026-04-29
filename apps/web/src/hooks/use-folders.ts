@@ -8,6 +8,8 @@ export function useFolders(projectId: number | null, refreshKey: number = 0) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setFolders([]);
+    setBasePath("");
     async function fetchFolders() {
       setLoading(true);
       try {

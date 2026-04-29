@@ -423,6 +423,7 @@ export default function HomePage() {
             selectedProject={selectedProject ?? null}
             selectedSection={selectedSection}
             basePath={selectedSection === "projects" ? projectBasePath : knowledgeBasePath}
+            loading={filesLoading || projectsLoading}
             onSync={handleSync}
             onUnregisterProject={handleUnregisterProject}
             onDeleteFolder={handleDeleteFolder}
