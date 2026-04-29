@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="apps/web/src/components/theme/logo.png" alt="CtxNest Logo" width="180">
+  <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180">
 </p>
 
 <h1 align="center">CtxNest v2.0</h1>
