@@ -305,8 +305,8 @@ server.tool(
 );
 
 server.tool(
-  "sync_backup",
-  "Sync backup copies of project reference files",
+  "commit_backup",
+  "Commit recent file changes to the project's git backup. Run after a batch of create_file/update_file/delete_file operations to persist them to the backup directory and push to the remote backup. Note that the backup is in a ",
   {
     project_id: z.number().describe("Project ID"),
   },
