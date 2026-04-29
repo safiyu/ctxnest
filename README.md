@@ -237,9 +237,9 @@ claude mcp add ctxnest -s user \
 Note the order: `-s` and `-e` are flags to `claude mcp add` and must appear **before** the `--` separator. Anything after `--` is the command + args that Claude Code will spawn.
 
 ### Manual configuration (`mcpServers.json`)
-
-For Claude Desktop, Cursor, Continue, Gemini CLI, and other clients that read a JSON config file:
-
+ 
+For Claude Desktop, Cursor, Continue, Gemini, Antigravity, and other clients that read a JSON config file:
+ 
 ```json
 {
   "mcpServers": {
@@ -253,8 +253,14 @@ For Claude Desktop, Cursor, Continue, Gemini CLI, and other clients that read a 
   }
 }
 ```
-
+ 
 Use absolute paths — most clients launch the process from their own working directory.
+ 
+**Configuration Paths:**
+- **Antigravity & Gemini**: `~/.gemini/antigravity/mcp_servers.json`
+- **Claude Desktop**: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+- **Codex**: `.codex/mcp_servers.json`
+- **Cursor**: `Settings -> Features -> MCP`
 
 ### Docker-based configuration
 
