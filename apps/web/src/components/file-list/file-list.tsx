@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { FileListFilter } from "./file-list-filter";
+import { FileItem } from "./file-item";
+import { UploadFilesDialog } from "./upload-files-dialog";
 
 interface Project {
   id: number;
@@ -37,6 +39,8 @@ interface FileListProps {
   onUnregisterProject?: () => void;
   onDeleteFolder?: () => void;
   loading?: boolean;
+  projects?: Project[];
+  onUploaded?: () => void;
 }
 
 export function FileList({
@@ -53,8 +57,15 @@ export function FileList({
   onUnregisterProject,
   onDeleteFolder,
   loading,
+  projects,
+  onUploaded,
 }: FileListProps) {
   const [filter, setFilter] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => { setSelectedIds(new Set()); }, [selectedFolder, selectedProject?.id, selectedSection, filter]);
 
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
@@ -111,10 +122,48 @@ export function FileList({
     }
 
     return result;
-  }, [files, sortBy, selectedFolder, selectedProject, basePath, filter]);
+  }, [files, sortBy, selectedFolder, selectedProject, selectedSection, basePath, filter]);
 
   return (
     <div className="flex flex-col h-full">
+      <div className="flex items-center gap-1 px-2 py-1 border-b border-[var(--border)]">
+        <button
+          type="button"
+          onClick={() => setUploadOpen(true)}
+          className="text-[11px] px-2 py-1 text-[var(--text-secondary)] hover:text-amber-accent"
+          title="Upload markdown files"
+        >
+          ↑ Upload
+        </button>
+        {selectedSection === "projects" && selectedProject && !selectedFolder && (
+          <a
+            href={`/api/export/zip?project_id=${selectedProject.id}`}
+            download
+            className="text-[11px] px-2 py-1 text-[var(--text-secondary)] hover:text-amber-accent"
+            title="Download project as ZIP"
+          >
+            ↓ Project ZIP
+          </a>
+        )}
+        {selectedSection === "projects" && selectedProject && selectedFolder && (
+          <a
+            href={`/api/export/zip?project_id=${selectedProject.id}&folder=${encodeURIComponent(selectedFolder)}`}
+            download
+            className="text-[11px] px-2 py-1 text-[var(--text-secondary)] hover:text-amber-accent"
+            title="Download folder as ZIP"
+          >
+            ↓ Folder ZIP
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => { setSelectMode((v) => !v); setSelectedIds(new Set()); }}
+          className={`ml-auto text-[11px] px-2 py-1 ${selectMode ? "text-amber-accent" : "text-[var(--text-secondary)] hover:text-amber-accent"}`}
+          title="Toggle multi-select"
+        >
+          {selectMode ? "✓ Select" : "Select"}
+        </button>
+      </div>
       <div className="px-3 py-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)]">
         <span>
           {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "file" : "files"}
@@ -136,33 +185,49 @@ export function FileList({
       {files.length > 10 && <FileListFilter value={filter} onChange={setFilter} />}
 
       <div className="flex-1 overflow-y-auto">
-        {filteredAndSorted.length > 0 ? (
-          filteredAndSorted.map((file) => {
-            const isActive = file.id === selectedFileId;
-            return (
-              <button
-                key={file.id}
-                onClick={() => onSelectFile(file.id)}
-                className={`relative w-full text-left px-3 py-2 border-b border-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors ${
-                  isActive ? "bg-[var(--accent-soft)]" : ""
-                }`}
+        {selectMode && selectedIds.size > 0 && (
+          <div className="sticky top-0 z-10 px-3 py-2 bg-[var(--bg-secondary)] border-b border-amber-accent/40 flex items-center justify-between text-[11px]">
+            <span>{selectedIds.size} selected</span>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/export/zip?file_ids=${[...selectedIds].join(",")}`}
+                download
+                className="px-2 py-1 bg-amber-accent text-black font-bold rounded"
               >
-                {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-[var(--accent)]" />}
-                <div className="text-[14px] text-[var(--text-primary)] font-medium truncate">{file.title}</div>
-                <div className="text-[11px] font-mono text-[var(--text-secondary)] mt-0.5 flex items-center gap-2">
-                  <span>{formatRelative(file.updated_at)}</span>
-                  {file.est_tokens != null && (
-                    <>
-                      <span className="text-[var(--border)]">·</span>
-                      <span title={`~${file.est_tokens.toLocaleString()} tokens (heuristic: bytes/4)`}>
-                        ~{formatTokens(file.est_tokens)} tok
-                      </span>
-                    </>
-                  )}
-                </div>
+                Download ZIP
+              </a>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="px-2 py-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                Clear
               </button>
-            );
-          })
+            </div>
+          </div>
+        )}
+        {filteredAndSorted.length > 0 ? (
+          filteredAndSorted.map((file) => (
+            <FileItem
+              key={file.id}
+              id={file.id}
+              title={file.title}
+              updatedAt={file.updated_at}
+              active={file.id === selectedFileId}
+              onClick={() => onSelectFile(file.id)}
+              estTokens={file.est_tokens}
+              selectMode={selectMode}
+              selected={selectedIds.has(file.id)}
+              onToggleSelect={() => {
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(file.id)) next.delete(file.id);
+                  else next.add(file.id);
+                  return next;
+                });
+              }}
+            />
+          ))
         ) : loading || (selectedSection === "projects" && !selectedProject) ? (
           <div aria-label="Loading files" role="status">
             {[0, 1, 2, 3].map((i) => (
@@ -192,7 +257,7 @@ export function FileList({
               </p>
             </div>
 
-            {selectedFolder && onDeleteFolder && (
+            {selectedSection === "knowledge" && selectedFolder && onDeleteFolder && (
               <div className="mt-6 flex flex-col items-center gap-3">
                 <div className="h-px w-16 bg-[var(--border)]" />
                 <button
@@ -207,6 +272,17 @@ export function FileList({
           </div>
         )}
       </div>
+      <UploadFilesDialog
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        projects={projects ?? []}
+        defaultProjectId={selectedSection === "projects" && selectedProject ? selectedProject.id : null}
+        defaultFolder={selectedFolder ?? ""}
+        onUploaded={() => {
+          setUploadOpen(false);
+          onUploaded?.();
+        }}
+      />
     </div>
   );
 }

@@ -427,6 +427,8 @@ export default function HomePage() {
             onSync={handleSync}
             onUnregisterProject={handleUnregisterProject}
             onDeleteFolder={handleDeleteFolder}
+            projects={projects}
+            onUploaded={() => { refreshFiles(); refreshAllFiles(); }}
           />
         }
         right={<ContentPane fileId={selectedFileId} onDelete={handleDeleteFile} />}

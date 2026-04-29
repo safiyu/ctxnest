@@ -19,19 +19,14 @@ import {
   listTags,
   listProjects,
   syncBackup,
+  bundleSearch,
+  estimateTokensFromBuffer,
 } from "@ctxnest/core";
 import { join } from "node:path";
 import { statSync, openSync, readSync, closeSync } from "node:fs";
 
 const dataDir = process.env.CTXNEST_DATA_DIR || join(process.cwd(), "data");
 const dbPath = process.env.CTXNEST_DB_PATH || join(dataDir, "ctxnest.db");
-
-// Sample head; pick bytes/4 for ASCII or bytes/3 for multi-byte (CJK/emoji).
-function estimateTokensFromBuffer(buf: Buffer): number {
-  if (buf.length === 0) return 1;
-  const mostlyAscii = buf.toString("utf-8").length > buf.length * 0.7;
-  return Math.max(1, Math.ceil(buf.length / (mostlyAscii ? 4 : 3)));
-}
 
 function estimateTokensFromFile(filePath: string, sizeBytes: number): number {
   if (sizeBytes <= 0) return 1;
@@ -193,6 +188,32 @@ server.tool(
     const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
     return {
       content: [{ type: "text", text: JSON.stringify({ matches: annotated, total_est_tokens }, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "bundle_search",
+  "Run a full-text search and return the matched files concatenated into a prompt-ready bundle. Use instead of search + multiple read_file calls when you need several related files for context. Output is capped by max_tokens (stops at the first file that would exceed).",
+  {
+    query: z.string().describe("Full-text search query"),
+    project_id: z.number().optional().describe("Filter by project ID"),
+    tags: z.array(z.string()).optional().describe("Filter by tags (all must match)"),
+    favorite: z.boolean().optional().describe("Filter by favorite status"),
+    format: z.enum(["xml", "markdown"]).default("xml")
+      .describe("Bundle format. xml = Anthropic-recommended <document> tags; markdown = ## headers + fenced blocks"),
+    max_tokens: z.number().int().positive().default(50000)
+      .describe("Token budget. Files added in rank order until the next would exceed; remainder go to skipped[]"),
+  },
+  async ({ query, project_id, tags, favorite, format, max_tokens }) => {
+    const filters: any = { query };
+    if (project_id !== undefined) filters.project_id = project_id;
+    if (tags !== undefined) filters.tags = tags;
+    if (favorite !== undefined) filters.favorite = favorite;
+
+    const result = await bundleSearch(filters, { format, max_tokens });
+    return {
+      content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
     };
   }
 );

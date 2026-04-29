@@ -7,4 +7,6 @@ export {
 } from "./metadata/index.js";
 export { commitFile, getHistory, getDiff, restoreVersion, syncBackup, getGlobalRemote, setGlobalRemote, type SyncStage } from "./git/index.js";
 export { createFileWatcher, type WatcherEvent } from "./watcher/index.js";
+export { bundleSearch, type BundleFormat, type BundleOptions, type BundleResult, type BundleIncludedItem, type BundleSkippedItem } from "./bundle/index.js";
+export { estimateTokensFromBuffer, estimateTokensFromString } from "./util/tokens.js";
 export type * from "./types.js";

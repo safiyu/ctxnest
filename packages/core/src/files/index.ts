@@ -4,7 +4,7 @@
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
-import { join, dirname, resolve, sep } from "node:path";
+import { join, dirname, resolve, sep, isAbsolute } from "node:path";
 import { getDatabase } from "../db/index.js";
 import { commitFile } from "../git/index.js";
 import { assertPathInside, escapeLike } from "../util/safety.js";
@@ -264,15 +264,16 @@ export function deleteFile(id: number, dataDir?: string): void {
 
   if (file && dataDir) {
     const knowledgeRoot = resolve(dataDir, "knowledge");
-    const filePathResolved = resolve(file.path);
+    // Resolve file path relative to dataDir if it's not absolute
+    const filePathResolved = isAbsolute(file.path) ? file.path : resolve(dataDir, file.path);
     const inKnowledge =
       filePathResolved === knowledgeRoot ||
       filePathResolved.startsWith(knowledgeRoot + sep);
 
     if (file.project_id === null && inKnowledge) {
       try {
-        if (existsSync(file.path)) {
-          unlinkSync(file.path);
+        if (existsSync(filePathResolved)) {
+          unlinkSync(filePathResolved);
         }
       } catch (e) {
         console.error("Failed to delete Knowledge Base file from disk:", e);

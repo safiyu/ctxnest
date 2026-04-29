@@ -291,9 +291,12 @@ Every file-returning tool annotates its response with `size_bytes` and `est_toke
 | `list_files` | `{ files: [...annotated], total_est_tokens }` |
 | `search` | `{ matches: [...annotated], total_est_tokens }` |
 | `register_project` | `{ project, discovered_files_count, total_est_tokens, discovered_files: [...annotated] }` |
+| `bundle_search` | `{ bundle, meta: { query, format, total_est_tokens, included: [{id, path, est_tokens}], skipped: [{..., reason}] } }` |
 
 > [!NOTE]
 > `list_files` and `search` previously returned bare arrays. Clients that pre-parsed the array directly need to read `.files` / `.matches` instead.
+
+**`bundle_search`** runs a full-text search and returns the matched files concatenated into a single prompt-ready blob — saves an agent the round-trips of `search` + N × `read_file` when it needs several related files for context. Inputs mirror `search` (`query`, `project_id`, `tags`, `favorite`) plus `format` (`"xml"` for Anthropic-recommended `<document>` tags, `"markdown"` for `##` headers + fenced blocks; default `"xml"`) and `max_tokens` (budget cap, default 50000). Files are added in rank order and the bundle stops at the first file that would exceed the budget; remaining hits land in `meta.skipped[]` with their estimated size so the agent can decide whether to re-call with a larger budget.
 
 ## Configuration
 

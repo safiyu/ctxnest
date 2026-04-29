@@ -8,12 +8,11 @@ const REPO_ROOT = path.resolve(__dirname, "../../../..");
 const DATA_DIR = process.env.CTXNEST_DATA_DIR || path.join(REPO_ROOT, "data");
 const DB_PATH = process.env.CTXNEST_DB_PATH || path.join(DATA_DIR, "ctxnest.db");
 
-let initialized = false;
-
 export function ensureDbInitialized() {
-  if (!initialized) {
-    createDatabase(DB_PATH);
-    initialized = true;
+  // Always check if DB exists on globalThis, don't rely on local flag
+  if (!globalThis.__ctxnestDb) {
+    const dbPath = process.env.CTXNEST_DB_PATH || DB_PATH;
+    createDatabase(dbPath);
   }
 }
 

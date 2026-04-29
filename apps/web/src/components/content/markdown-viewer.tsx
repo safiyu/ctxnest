@@ -5,11 +5,12 @@ import remarkGfm from "remark-gfm";
 
 interface MarkdownViewerProps {
   content: string;
+  className?: string;
 }
 
-export function MarkdownViewer({ content }: MarkdownViewerProps) {
+export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
   return (
-    <div className="prose dark:prose-invert max-w-none p-6">
+    <div className={`prose dark:prose-invert max-w-none ${className || ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{

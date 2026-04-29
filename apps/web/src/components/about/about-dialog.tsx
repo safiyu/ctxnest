@@ -47,13 +47,13 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 pt-[20vh]"
+      className="fixed inset-0 z-50 bg-black/50 pt-[10vh]"
       onClick={handleOverlayClick}
     >
       <div className="w-[480px] max-h-[80vh] mx-auto bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg shadow-2xl flex flex-col">
         {/* Header */}
         <div className="p-6 text-center border-b border-[var(--border-color)]">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center -mb-10">
             <AnimatedLogo size="lg" />
           </div>
           <h1 className="text-3xl font-bold text-amber-accent tracking-[4px] font-[family-name:var(--font-title)]">
@@ -68,22 +68,19 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         </div>
 
         {/* Changelog */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <h2 className="text-sm font-bold text-amber-accent tracking-[1.5px] mb-4">
-            CHANGELOG
-          </h2>
+        <div className="flex-1 overflow-y-auto prose-sm">
           {loading && (
-            <div className="space-y-3">
+            <div className="p-6 space-y-3">
               <div className="skeleton h-4 w-full" />
               <div className="skeleton h-4 w-5/6" />
               <div className="skeleton h-4 w-4/6" />
             </div>
           )}
           {!loading && data?.changelog && (
-            <MarkdownViewer content={data.changelog} />
+            <MarkdownViewer content={data.changelog} className="p-6 prose-sm" />
           )}
           {!loading && !data?.changelog && (
-            <div className="text-center text-[var(--text-secondary)]">
+            <div className="p-6 text-center text-[var(--text-secondary)]">
               No changelog available
             </div>
           )}

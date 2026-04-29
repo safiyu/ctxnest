@@ -5,6 +5,14 @@ import { MarkdownViewer } from "./markdown-viewer";
 import { MarkdownEditor } from "./markdown-editor";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
+const TrashIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M3 6h18" />
+    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+  </svg>
+);
+
 interface File {
   id: number;
   project_id: number | null;
@@ -30,7 +38,6 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
   const [history, setHistory] = useState<any[]>([]);
   const [fetchingHistory, setFetchingHistory] = useState(false);
   const [editContent, setEditContent] = useState("");
-  const [viewSource, setViewSource] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -40,7 +47,6 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
     if (fileId === null) {
       setFile(null);
       setEditing(false);
-      setViewSource(false);
       setViewHistory(false);
       return;
     }
@@ -194,11 +200,10 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
   return (
     <div key={fileId} className="h-full flex flex-col animate-fade-in">
       <div className="h-10 px-4 border-b border-[var(--border)] flex items-center gap-4 text-[14px] sticky top-0 bg-[var(--bg-primary)] z-10">
-        {(["view", "edit", "source", "history"] as const).map((mode) => {
+        {(["view", "edit", "history"] as const).map((mode) => {
           const active =
-            (mode === "view" && !editing && !viewSource && !viewHistory) ||
+            (mode === "view" && !editing && !viewHistory) ||
             (mode === "edit" && editing) ||
-            (mode === "source" && viewSource) ||
             (mode === "history" && viewHistory);
           const onTabClick = () => {
             if (mode === "edit") {
@@ -207,7 +212,6 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
             }
             // Switching away from edit cancels in-progress edits.
             if (editing) handleCancel();
-            setViewSource(mode === "source");
             setViewHistory(mode === "history");
             if (mode === "history") fetchHistory();
           };
@@ -256,11 +260,12 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
               )}
               <button
                 onClick={() => setDeleteDialogOpen(true)}
-                className="hover:text-[var(--danger)]"
+                className="text-[var(--danger)] flex items-center gap-1.5 transition-opacity hover:opacity-80 group"
                 aria-label="Delete file"
                 title="Delete file"
               >
-                ⋯
+                <TrashIcon className="w-4 h-4 opacity-70 group-hover:opacity-100" />
+                <span className="font-bold uppercase tracking-tighter text-[11px]">Delete</span>
               </button>
             </>
           )}
@@ -315,13 +320,9 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
               )}
             </div>
           </div>
-        ) : viewSource ? (
-          <pre className="p-6 text-sm overflow-auto h-full bg-gray-50 dark:bg-[#0a0a0a] text-gray-900 dark:text-gray-100">
-            {file.content}
-          </pre>
         ) : (
           <div className="h-full overflow-auto">
-            <MarkdownViewer content={file.content} />
+            <MarkdownViewer content={file.content} className="p-8" />
           </div>
         )}
       </div>

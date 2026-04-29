@@ -57,6 +57,8 @@ export async function ensureGitRepo(dir: string): Promise<void> {
     await git.init();
     await git.addConfig("user.email", "ctxnest@local");
     await git.addConfig("user.name", "CtxNest");
+    await git.addConfig("commit.gpgsign", "false");
+    await git.addConfig("tag.gpgsign", "false");
   } catch (error) {
     console.warn(`Failed to initialize git in ${dir}:`, error);
   }
@@ -80,7 +82,7 @@ export async function commitFile(
 
     await git.add(relativePath);
     // Path-scoped commit so concurrent activity in the repo can't get swept in.
-    await git.commit(message, [relativePath], { "--no-verify": null });
+    await git.commit(message, [relativePath], { "--no-verify": null, "--no-gpg-sign": null });
   });
 }
 
@@ -182,7 +184,7 @@ export async function restoreVersion(
 
     try {
       await git.add(relativePath);
-      await git.commit(`Restore version ${commitHash.slice(0, 7)}`, [relativePath], { "--no-verify": null });
+      await git.commit(`Restore version ${commitHash.slice(0, 7)}`, [relativePath], { "--no-verify": null, "--no-gpg-sign": null });
     } catch {
       // No-op if content already matches HEAD.
     }
@@ -219,6 +221,8 @@ export async function setGlobalRemote(dataDir: string, url: string): Promise<voi
     await git.init();
     await git.addConfig("user.email", "ctxnest@local");
     await git.addConfig("user.name", "CtxNest");
+    await git.addConfig("commit.gpgsign", "false");
+    await git.addConfig("tag.gpgsign", "false");
   }
 
   try {
@@ -284,6 +288,8 @@ async function _syncBackupLocked(
     await git.init();
     await git.addConfig("user.email", "ctxnest@local");
     await git.addConfig("user.name", "CtxNest");
+    await git.addConfig("commit.gpgsign", "false");
+    await git.addConfig("tag.gpgsign", "false");
   }
 
   const globalRemoteUrl = await getGlobalRemote(dataDir);
@@ -297,7 +303,7 @@ async function _syncBackupLocked(
       try {
         await git.raw(["rev-parse", "HEAD"]);
       } catch {
-        await git.commit("Initial commit", ["--allow-empty"]);
+        await git.commit("Initial commit", ["--allow-empty"], { "--no-gpg-sign": null });
       }
     } catch (error) {
       console.warn("Git remote setup failed:", error);
@@ -380,7 +386,7 @@ async function _syncBackupLocked(
   const status = await git.status();
   if (status.staged.length > 0 || status.created.length > 0 || status.deleted.length > 0 || status.modified.length > 0) {
     stage("committing local");
-    await git.commit(`Sync local changes for project: ${project.name}`, undefined, { "--no-verify": null });
+    await git.commit(`Sync local changes for project: ${project.name}`, undefined, { "--no-verify": null, "--no-gpg-sign": null });
   }
 
   // STEP 2 — pull remote.
