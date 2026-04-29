@@ -11,7 +11,17 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-let db: Database.Database | null = null;
+// Cache on globalThis so Next.js HMR / multiple module evaluations don't
+// orphan the SQLite handle (which would leave the WAL/SHM files locked
+// and cause "database is locked" errors in dev).
+declare global {
+  // eslint-disable-next-line no-var
+  var __ctxnestDb: Database.Database | null | undefined;
+  // eslint-disable-next-line no-var
+  var __ctxnestDbCloseRegistered: boolean | undefined;
+}
+
+let db: Database.Database | null = globalThis.__ctxnestDb ?? null;
 
 /**
  * Create and initialize the database
@@ -24,6 +34,7 @@ export function createDatabase(dbPath: string): Database.Database {
   }
 
   db = new Database(dbPath);
+  globalThis.__ctxnestDb = db;
 
   // Enable WAL mode for better concurrency
   db.pragma("journal_mode = WAL");
@@ -33,6 +44,24 @@ export function createDatabase(dbPath: string): Database.Database {
 
   // Run migrations
   runMigrations();
+
+  if (!globalThis.__ctxnestDbCloseRegistered) {
+    globalThis.__ctxnestDbCloseRegistered = true;
+    const close = () => {
+      try {
+        closeDatabase();
+      } catch {}
+    };
+    process.once("beforeExit", close);
+    process.once("SIGINT", () => {
+      close();
+      process.exit(0);
+    });
+    process.once("SIGTERM", () => {
+      close();
+      process.exit(0);
+    });
+  }
 
   return db;
 }
@@ -56,6 +85,7 @@ export function closeDatabase(): void {
   if (db) {
     db.close();
     db = null;
+    globalThis.__ctxnestDb = null;
   }
 }
 

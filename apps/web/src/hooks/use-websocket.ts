@@ -7,7 +7,9 @@ export function useWebSocket(onEvent: (event: { type: string; path: string }) =>
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.hostname}:3001`;
+    // NEXT_PUBLIC_WS_PORT is baked at build time; falls back to 3001.
+    const wsPort = process.env.NEXT_PUBLIC_WS_PORT || "3001";
+    const wsUrl = `${protocol}//${window.location.hostname}:${wsPort}`;
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout>;
 

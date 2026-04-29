@@ -21,8 +21,15 @@ export async function POST(req: NextRequest) {
     projectPath = join(DATA_DIR, "knowledge");
   }
 
-  const path = createFolder(projectPath, name);
-  return NextResponse.json({ path });
+  if (typeof name !== "string" || name.length === 0) {
+    return NextResponse.json({ error: "Folder name is required" }, { status: 400 });
+  }
+  try {
+    const path = createFolder(projectPath, name);
+    return NextResponse.json({ path });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message || "Invalid folder name" }, { status: 400 });
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -73,17 +80,29 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const { deleteFolder } = await import("@ctxnest/core");
-    
+
     if (!projectId || projectId === "null") {
       // Knowledge Base: Safe to delete physically
       deleteFolder(projectPath, folderName);
     } else {
-      // Project: DO NOT delete physically. Only un-index files in this folder.
-      const normalizedFolder = folderName.endsWith("/") ? folderName : folderName + "/";
+      // Project: DO NOT delete physically. Only un-index files inside this folder.
+      // Match files whose path is exactly under projectPath/folderName/.
+      const { resolve, sep } = await import("node:path");
+      const baseResolved = resolve(projectPath);
+      const target = resolve(baseResolved, folderName);
+      if (target !== baseResolved && !target.startsWith(baseResolved + sep)) {
+        return NextResponse.json({ error: "Invalid folder name" }, { status: 400 });
+      }
+      const folderPrefix = target.endsWith(sep) ? target : target + sep;
+      // Escape LIKE metacharacters (\, %, _) and use ESCAPE clause.
+      const escaped = folderPrefix.replace(/[\\%_]/g, (ch) => "\\" + ch);
       const db = getDatabase();
-      db.prepare("DELETE FROM files WHERE project_id = ? AND path LIKE ?").run(projectId, `%/${normalizedFolder}%`);
+      db.prepare("DELETE FROM files WHERE project_id = ? AND path LIKE ? ESCAPE '\\'").run(
+        projectId,
+        `${escaped}%`
+      );
     }
-    
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Failed to delete folder:", error);

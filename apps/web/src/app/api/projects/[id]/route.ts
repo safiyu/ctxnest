@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase, unregisterProject } from "@ctxnest/core";
-import { ensureDbInitialized } from "@/lib/db-init";
+import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 
 export async function DELETE(
   req: NextRequest,
@@ -9,7 +9,7 @@ export async function DELETE(
   ensureDbInitialized();
   const { id } = await params;
   try {
-    unregisterProject(parseInt(id, 10));
+    unregisterProject(parseInt(id, 10), DATA_DIR);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

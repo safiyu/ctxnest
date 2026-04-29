@@ -24,9 +24,12 @@ export function buildFolderTree(
     : projectPath + "/";
 
   for (const file of files) {
-    const relativePath = file.path.startsWith(normalizedProjectPath)
-      ? file.path.slice(normalizedProjectPath.length)
-      : file.path;
+    // Skip files that don't actually live under this project. A stale row
+    // (post-rename, post-misclassification by the watcher) used to render
+    // as bogus top-level "/repos/foo/..." nodes when the absolute path
+    // was treated as relative.
+    if (!file.path.startsWith(normalizedProjectPath)) continue;
+    const relativePath = file.path.slice(normalizedProjectPath.length);
 
     const segments = relativePath.split("/");
     const fileName = segments.pop()!;

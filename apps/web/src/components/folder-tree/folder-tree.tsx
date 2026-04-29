@@ -124,14 +124,12 @@ export function FolderTree({
   }, [knowledgeFiles, knowledgeFolders, knowledgeBasePath]);
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-2 space-y-3">
       <div>
-        <div className="flex items-center justify-between mb-3 px-3">
-          <div className="text-amber-accent text-xs font-bold tracking-[1.5px]">
-            PROJECTS
-          </div>
+        <div className="px-2 pt-2 pb-1 text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">
+          Projects
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {projects.map((project) => {
             const isSelected = selectedProjectId === project.id;
             return (
@@ -167,21 +165,25 @@ export function FolderTree({
       </div>
 
       <div>
-        <div className="flex items-center justify-between mb-3 px-3">
-          <div 
+        <div className="flex items-center justify-between px-2 pt-2 pb-1">
+          <button
             onClick={onSelectKnowledge}
-            className={`text-xs font-bold tracking-[1.5px] cursor-pointer hover:text-amber-accent-dark transition-colors ${selectedSection === "knowledge" && !selectedFolder ? "text-amber-accent" : "text-amber-accent/70"}`}
+            className={`text-[11px] uppercase tracking-wider transition-colors ${
+              selectedSection === "knowledge" && !selectedFolder
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
           >
-            KNOWLEDGE BASE
-          </div>
+            Knowledge
+          </button>
           <button
             onClick={() => onCreateFolder(0)}
-            className="text-[10px] font-bold text-gray-500 hover:text-amber-accent transition-colors"
+            className="text-[11px] uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
           >
-            + FOLDER
+            + folder
           </button>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {knowledgeFolderTree ? (
             <FolderNodes
               node={knowledgeFolderTree}

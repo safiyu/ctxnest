@@ -2,7 +2,6 @@ node_modules/
 dist/
 .next/
 .turbo/
-ctxnest.db
 .superpowers/
 *.tsbuildinfo
 CLAUDE.md
@@ -13,3 +12,5 @@ ctxnest.db
 *.db-journal
 *.db-shm
 *.db-wal
+.DS_Store
+test_output.txt

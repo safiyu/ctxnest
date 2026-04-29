@@ -18,6 +18,11 @@ RUN pnpm install --frozen-lockfile
 # Copy the rest of the source code
 COPY . .
 
+# WebSocket port is baked into the client bundle at build time via
+# NEXT_PUBLIC_WS_PORT. Override at build with --build-arg WS_PORT=...
+ARG WS_PORT=3001
+ENV NEXT_PUBLIC_WS_PORT=${WS_PORT}
+
 # Build everything
 # This will build @ctxnest/core first, then apps/web and apps/mcp
 RUN pnpm build
@@ -43,8 +48,8 @@ COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/mcp/dist ./apps/mcp/dist
 COPY --from=builder /app/apps/mcp/package.json ./apps/mcp/package.json
 
-# The standalone server runs on port 3000 by default
-EXPOSE 3000
+# Web UI on 3000, file-watcher WebSocket on WS_PORT (default 3001).
+EXPOSE 3000 3001
 
 # We use the built standalone server
 CMD ["node", "apps/web/server.js"]

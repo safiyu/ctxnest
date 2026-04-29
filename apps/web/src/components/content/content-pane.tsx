@@ -193,80 +193,69 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
 
   return (
     <div key={fileId} className="h-full flex flex-col animate-fade-in">
-      <div className="border-b border-gray-200 dark:border-[#333333] px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              {file.title}
-            </h2>
-            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {file.storage_type.toUpperCase()} •{" "}
-              {new Date(file.updated_at).toLocaleString()}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {!editing && (
-              <>
-                <button
-                  onClick={handleEdit}
-                  className="px-3 py-1.5 text-sm bg-amber-accent text-black rounded hover:bg-amber-accent-dark transition-all btn-press flex items-center gap-1.5 font-bold shadow-sm"
-                >
-                  <span className="text-xs">✏️</span>
-                  Edit
-                </button>
-                <button
-                  onClick={() => setViewSource(!viewSource)}
-                  className={`px-3 py-1.5 text-sm rounded transition-all btn-press flex items-center gap-1.5 font-bold ${viewSource ? "bg-amber-accent text-black shadow-lg" : "bg-gray-200 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-[#333333]"}`}
-                >
-                  <span className="text-xs">{viewSource ? "👁️" : "📄"}</span>
-                  {viewSource ? "View" : "Source"}
-                </button>
-                <button
-                  onClick={() => {
-                    const next = !viewHistory;
-                    setViewHistory(next);
-                    if (next) {
-                      setViewSource(false);
-                      fetchHistory();
-                    }
-                  }}
-                  className={`px-3 py-1.5 text-sm rounded transition-all btn-press flex items-center gap-1.5 font-bold ${viewHistory ? "bg-amber-accent text-black shadow-lg" : "bg-gray-200 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-[#333333]"}`}
-                >
-                  <span className="text-xs">🕒</span>
-                  History
-                </button>
-                <button
-                  onClick={() => setDeleteDialogOpen(true)}
-                  className="px-3 py-1.5 text-sm bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded hover:bg-red-200 dark:hover:bg-red-900/50 transition-all btn-press font-bold flex items-center gap-1.5 shadow-sm"
-                >
-                  <span className="text-xs">🗑️</span>
-                  Delete
-                </button>
-              </>
-            )}
-
-            {editing && (
-              <>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-3 py-1.5 text-sm bg-amber-accent text-black rounded hover:bg-amber-accent-dark transition-all disabled:opacity-50 btn-press flex items-center gap-1.5 font-bold shadow-md"
-                >
-                  <span className="text-xs">{saving ? "⏳" : "✅"}</span>
-                  {saving ? "Saving..." : "Save"}
-                </button>
-                <button
-                  onClick={handleCancel}
-                  disabled={saving}
-                  className="px-3 py-1.5 text-sm bg-gray-200 dark:bg-[#2a2a2a] text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-[#333333] transition-all disabled:opacity-50 btn-press flex items-center gap-1.5 font-bold"
-                >
-                  <span className="text-xs">❌</span>
-                  Cancel
-                </button>
-              </>
-            )}
-          </div>
+      <div className="h-10 px-4 border-b border-[var(--border)] flex items-center gap-4 text-[14px] sticky top-0 bg-[var(--bg-primary)] z-10">
+        {(["view", "edit", "source", "history"] as const).map((mode) => {
+          const active =
+            (mode === "view" && !editing && !viewSource && !viewHistory) ||
+            (mode === "edit" && editing) ||
+            (mode === "source" && viewSource) ||
+            (mode === "history" && viewHistory);
+          const onTabClick = () => {
+            if (mode === "edit") {
+              if (!editing) handleEdit();
+              return;
+            }
+            // Switching away from edit cancels in-progress edits.
+            if (editing) handleCancel();
+            setViewSource(mode === "source");
+            setViewHistory(mode === "history");
+            if (mode === "history") fetchHistory();
+          };
+          return (
+            <button
+              key={mode}
+              onClick={onTabClick}
+              className={`-mb-px py-2 border-b-2 transition-colors ${
+                active
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {mode[0].toUpperCase() + mode.slice(1)}
+            </button>
+          );
+        })}
+        <div className="ml-auto flex items-center gap-3 text-[12px] text-[var(--text-secondary)] font-mono">
+          {editing ? (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-2 py-1 bg-[var(--accent)] text-black font-bold rounded disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button
+                onClick={handleCancel}
+                disabled={saving}
+                className="px-2 py-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              {file?.updated_at && <span>edited {formatRelative(file.updated_at)}</span>}
+              <button
+                onClick={() => setDeleteDialogOpen(true)}
+                className="hover:text-[var(--danger)]"
+                aria-label="Delete file"
+                title="Delete file"
+              >
+                ⋯
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -338,4 +327,15 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
       />
     </div>
   );
+}
+
+function formatRelative(iso?: string): string {
+  if (!iso) return "";
+  const ts = new Date(iso).getTime();
+  if (!isFinite(ts)) return iso;
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
 }

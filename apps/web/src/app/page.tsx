@@ -15,6 +15,10 @@ import { useProjects } from "@/hooks/use-projects";
 import { useFiles } from "@/hooks/use-files";
 import { useFolders } from "@/hooks/use-folders";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { Breadcrumb, type BreadcrumbSegment } from "@/components/layout/breadcrumb";
+import { StatusBar } from "@/components/layout/status-bar";
+import { IconRail } from "@/components/layout/icon-rail";
 
 type SortBy = "name" | "updated_at" | "created_at";
 
@@ -100,18 +104,21 @@ export default function HomePage() {
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   const handleWebSocketEvent = useCallback(
-    (event: { type: string; path: string }) => {
+    (_event: { type: string; path: string }) => {
+      // Refresh the file lists so the sidebar reflects external changes,
+      // but DO NOT toggle selectedFileId. The previous "null then restore"
+      // dance reset ContentPane's editing state on every watcher event,
+      // silently dropping unsaved edits whenever any .md under data/
+      // changed (including unrelated files in other projects).
       refreshFiles();
       refreshAllFiles();
-      if (selectedFileId) {
-        setSelectedFileId(null);
-        setTimeout(() => setSelectedFileId(selectedFileId), 0);
-      }
     },
-    [refreshFiles, selectedFileId]
+    [refreshFiles, refreshAllFiles]
   );
 
   useWebSocket(handleWebSocketEvent);
+
+  const isPhone = useMediaQuery("(max-width: 767px)");
 
   const handleSelectProject = (projectId: number) => {
     setSelectedProjectId(projectId);
@@ -309,6 +316,68 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const breadcrumbSegments: BreadcrumbSegment[] = (() => {
+    const segs: BreadcrumbSegment[] = [];
+    // Section root
+    if (selectedSection === "knowledge") {
+      segs.push({ label: "Knowledge", onClick: handleSelectKnowledge });
+    } else if (selectedSection === "projects" && selectedProject) {
+      segs.push({ label: selectedProject.name, onClick: () => handleSelectProject(selectedProject.id) });
+    }
+
+    // Resolve the selected file (may be from either pool)
+    const file = selectedFileId
+      ? files.find((x) => x.id === selectedFileId) || allFiles.find((x) => x.id === selectedFileId)
+      : null;
+
+    // Compute the section base path so we can derive the file's folder chain
+    // even when the user clicked it from the project root (no selectedFolder).
+    const sectionBase =
+      selectedSection === "projects"
+        ? selectedProject?.path ?? null
+        : knowledgeBasePath ?? null;
+
+    let folderSegments: string[] = [];
+    if (file && sectionBase && file.path?.startsWith(sectionBase)) {
+      const rel = file.path.slice(sectionBase.length).replace(/^\/+/, "");
+      const parts = rel.split("/").filter(Boolean);
+      folderSegments = parts.slice(0, -1); // drop the filename
+    } else if (selectedFolder) {
+      // No file selected, but a folder is — render its segments.
+      folderSegments = selectedFolder.split("/").filter(Boolean);
+    }
+
+    folderSegments.forEach((part) => segs.push({ label: part }));
+
+    if (file) segs.push({ label: file.title });
+    return segs;
+  })();
+
+  const railItems = projects.map((p) => ({
+    id: `p-${p.id}`,
+    label: p.name,
+    active: selectedSection === "projects" && selectedProjectId === p.id,
+    onClick: () => handleSelectProject(p.id),
+  }));
+
+  const railFooter = {
+    id: "kb",
+    label: "Knowledge Base",
+    active: selectedSection === "knowledge",
+    onClick: handleSelectKnowledge,
+  };
+
+  if (isPhone) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center px-6 text-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
+        <div className="text-2xl font-extrabold tracking-[4px] text-[var(--accent)] mb-3">CTXNEST</div>
+        <p className="text-sm text-[var(--text-secondary)] max-w-xs">
+          CtxNest is best used on a tablet or larger screen. Open this URL on a wider device to continue.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col">
       <TopBar
@@ -316,8 +385,10 @@ export default function HomePage() {
         onNewFile={() => setNewFileOpen(true)}
         onAbout={() => setAboutOpen(true)}
       />
+      <Breadcrumb segments={breadcrumbSegments} />
 
       <ThreePane
+        leftRail={<IconRail items={railItems} footer={railFooter} />}
         left={
           <FolderTree
             projects={projects}
@@ -354,13 +425,17 @@ export default function HomePage() {
             basePath={selectedSection === "projects" ? projectBasePath : knowledgeBasePath}
             onSync={handleSync}
             onUnregisterProject={handleUnregisterProject}
-            onSyncAll={handleSyncAll}
-            globalRemoteUrl={globalRemoteUrl}
-            onUpdateRemote={handleUpdateGlobalRemote}
             onDeleteFolder={handleDeleteFolder}
           />
         }
         right={<ContentPane fileId={selectedFileId} onDelete={handleDeleteFile} />}
+      />
+      <StatusBar
+        globalRemoteUrl={globalRemoteUrl}
+        onSyncAll={handleSyncAll}
+        onUpdateRemote={handleUpdateGlobalRemote}
+        selectedProjectName={selectedSection === "projects" ? selectedProject?.name ?? null : null}
+        onSyncProject={selectedSection === "projects" && selectedProjectId ? handleSync : undefined}
       />
 
       <SearchDialog

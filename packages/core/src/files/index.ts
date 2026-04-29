@@ -7,6 +7,7 @@ import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdir
 import { join, dirname } from "node:path";
 import { getDatabase } from "../db/index.js";
 import { commitFile } from "../git/index.js";
+import { assertPathInside, escapeLike } from "../util/safety.js";
 import type { FileRecord, Destination, FileFilters, StorageType } from "../types.js";
 
 /**
@@ -90,16 +91,19 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   let filePath: string;
   let storageType: StorageType;
 
+  const slug = slugify(title);
+  if (!slug) {
+    throw new Error("Invalid title: produces empty slug");
+  }
+  const filename = `${slug}.md`;
+
   if (destination === "knowledge") {
     // knowledge → data/knowledge/
     const knowledgeDir = join(dataDir, "knowledge");
     mkdirSync(knowledgeDir, { recursive: true });
-
-    const filename = `${slugify(title)}.md`;
     filePath = folder
-      ? join(knowledgeDir, folder, filename)
-      : join(knowledgeDir, filename);
-
+      ? assertPathInside(knowledgeDir, join(folder, filename))
+      : assertPathInside(knowledgeDir, filename);
     storageType = "local";
   } else if (destination === "ctxnest") {
     // ctxnest → data/projects/{slug}/
@@ -114,12 +118,9 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
 
     const projectDir = join(dataDir, "projects", project.slug);
     mkdirSync(projectDir, { recursive: true });
-
-    const filename = `${slugify(title)}.md`;
     filePath = folder
-      ? join(projectDir, folder, filename)
-      : join(projectDir, filename);
-
+      ? assertPathInside(projectDir, join(folder, filename))
+      : assertPathInside(projectDir, filename);
     storageType = "local";
   } else if (destination === "project") {
     // project → external project path
@@ -132,11 +133,9 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
       throw new Error(`Project path not found for project: ${projectId}`);
     }
 
-    const filename = `${slugify(title)}.md`;
     filePath = folder
-      ? join(project.path, folder, filename)
-      : join(project.path, filename);
-
+      ? assertPathInside(project.path, join(folder, filename))
+      : assertPathInside(project.path, filename);
     storageType = "reference";
   } else {
     throw new Error(`Unknown destination: ${destination}`);
@@ -313,7 +312,7 @@ export function deleteFile(id: number): void {
  * Create a new folder in a project
  */
 export function createFolder(projectPath: string, folderName: string): string {
-  const fullPath = join(projectPath, folderName);
+  const fullPath = assertPathInside(projectPath, folderName);
   mkdirSync(fullPath, { recursive: true });
   return fullPath;
 }
@@ -322,7 +321,7 @@ export function createFolder(projectPath: string, folderName: string): string {
  * Delete a folder (recursive)
  */
 export function deleteFolder(projectPath: string, folderName: string): void {
-  const fullPath = join(projectPath, folderName);
+  const fullPath = assertPathInside(projectPath, folderName);
   rmSync(fullPath, { recursive: true, force: true });
 }
 
@@ -365,8 +364,8 @@ export function listFiles(opts: ListFilesOptions): FileRecord[] {
     }
 
     if (filters.folder !== undefined) {
-      sql += " AND path LIKE ?";
-      params.push(`%${filters.folder}%`);
+      sql += " AND path LIKE ? ESCAPE '\\'";
+      params.push(`%${escapeLike(filters.folder)}%`);
     }
   }
 

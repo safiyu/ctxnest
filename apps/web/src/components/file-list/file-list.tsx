@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { FileItem } from "./file-item";
-import { SyncPanel } from "./sync-panel";
+import { useMemo, useState } from "react";
+import { FileListFilter } from "./file-list-filter";
 
 interface Project {
   id: number;
@@ -34,9 +33,6 @@ interface FileListProps {
   basePath?: string | null;
   onSync: () => void;
   onUnregisterProject?: () => void;
-  onSyncAll: () => Promise<void>;
-  globalRemoteUrl: string | null;
-  onUpdateRemote: (url: string) => Promise<void>;
   onDeleteFolder?: () => void;
 }
 
@@ -52,11 +48,10 @@ export function FileList({
   basePath,
   onSync,
   onUnregisterProject,
-  onSyncAll,
-  globalRemoteUrl,
-  onUpdateRemote,
   onDeleteFolder,
 }: FileListProps) {
+  const [filter, setFilter] = useState("");
+
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
@@ -110,50 +105,50 @@ export function FileList({
         break;
     }
 
+    if (filter) {
+      const q = filter.toLowerCase();
+      result = result.filter((f) => f.title.toLowerCase().includes(q));
+    }
+
     return result;
-  }, [files, sortBy, selectedFolder, selectedProject, basePath]);
+  }, [files, sortBy, selectedFolder, selectedProject, basePath, filter]);
 
   return (
     <div className="flex flex-col h-full">
-      <SyncPanel
-        remoteUrl={globalRemoteUrl}
-        projectName={selectedProject?.name}
-        onSync={selectedProject ? async () => onSync() : undefined}
-        onUnregister={selectedProject ? async () => onUnregisterProject?.() : undefined}
-        onSyncAll={onSyncAll}
-        onUpdateRemote={onUpdateRemote}
-      />
-      <div className="px-4 py-2 bg-black/10 border-b border-[#222222] flex items-center justify-between">
-        <div className="text-[10px] font-bold text-gray-500 tracking-[1px] uppercase">
-          {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "File" : "Files"}
-        </div>
-        <div className="relative">
-          <select
-            value={sortBy}
-            onChange={(e) => onSortChange(e.target.value as SortBy)}
-            className="text-[10px] font-bold bg-[#111111] border border-amber-accent/30 rounded px-2 pr-6 py-1 text-amber-accent/90 hover:text-amber-accent hover:border-amber-accent/60 transition-all cursor-pointer outline-none appearance-none"
-          >
-            <option value="name" className="bg-[#111111] text-amber-accent">NAME</option>
-            <option value="updated_at" className="bg-[#111111] text-amber-accent">UPDATED</option>
-            <option value="created_at" className="bg-[#111111] text-amber-accent">CREATED</option>
-          </select>
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[8px] text-amber-accent/50">
-            ▼
-          </div>
-        </div>
+      <div className="px-3 py-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)]">
+        <span>{filteredAndSorted.length} {filteredAndSorted.length === 1 ? "file" : "files"}</span>
+        <select
+          value={sortBy}
+          onChange={(e) => onSortChange(e.target.value as SortBy)}
+          className="bg-transparent text-[11px] uppercase tracking-wider focus:outline-none cursor-pointer"
+        >
+          <option value="updated_at">updated</option>
+          <option value="created_at">created</option>
+          <option value="name">name</option>
+        </select>
       </div>
+      {files.length > 10 && <FileListFilter value={filter} onChange={setFilter} />}
 
       <div className="flex-1 overflow-y-auto">
         {filteredAndSorted.length > 0 ? (
-          filteredAndSorted.map((file) => (
-            <FileItem
-              key={file.id}
-              title={file.title}
-              updatedAt={file.updated_at}
-              active={selectedFileId === file.id}
-              onClick={() => onSelectFile(file.id)}
-            />
-          ))
+          filteredAndSorted.map((file) => {
+            const isActive = file.id === selectedFileId;
+            return (
+              <button
+                key={file.id}
+                onClick={() => onSelectFile(file.id)}
+                className={`relative w-full text-left px-3 py-2 border-b border-[var(--bg-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors ${
+                  isActive ? "bg-[var(--accent-soft)]" : ""
+                }`}
+              >
+                {isActive && <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-[var(--accent)]" />}
+                <div className="text-[14px] text-[var(--text-primary)] font-medium truncate">{file.title}</div>
+                <div className="text-[11px] font-mono text-[var(--text-secondary)] mt-0.5">
+                  {formatRelative(file.updated_at)}
+                </div>
+              </button>
+            );
+          })
         ) : !selectedSection ? (
           <div className="flex flex-col items-center justify-center py-16 text-[#475569] dark:text-[#94A3B8] gap-4">
             <span className="text-6xl opacity-30 dark-icon">📂</span>
@@ -183,7 +178,7 @@ export function FileList({
                 >
                   DELETE THIS FOLDER
                 </button>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Permanent Action</p>
+                <p className="text-[11px] text-gray-500 uppercase tracking-widest font-bold">Permanent Action</p>
               </div>
             )}
           </div>
@@ -191,4 +186,15 @@ export function FileList({
       </div>
     </div>
   );
+}
+
+function formatRelative(iso?: string): string {
+  if (!iso) return "";
+  const ts = new Date(iso).getTime();
+  if (!isFinite(ts)) return iso;
+  const sec = Math.floor((Date.now() - ts) / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
 }

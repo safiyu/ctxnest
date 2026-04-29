@@ -16,7 +16,7 @@
   - Implemented strict cleanup logic to purge old duplicate folders in the local GitHub staging area.
   - Fixed an issue where locally deleted files were silently retained on disk and reappeared upon refresh.
   - Git engine now explicitly tracks and stages local file deletions using `--all` parameter.
-## 1.0.0 (2026-04-28)
+## 1.0.0 (2026-04-21)
 
 ### Features & Improvements
 - **Advanced Folder Management**:

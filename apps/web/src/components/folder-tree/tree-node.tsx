@@ -34,25 +34,21 @@ export function TreeNode({
     <div>
       <div
         onClick={handleClick}
-        className={`
-          px-3 py-2 text-sm font-medium cursor-pointer rounded transition-all duration-150
-          ${
-            active
-              ? "bg-amber-accent/10 border-l-[3px] border-amber-accent text-amber-accent font-semibold shadow-[inset_0_0_12px_rgba(212,144,58,0.06)]"
-              : "text-slate-800 dark:text-slate-100 border-l-[3px] border-transparent hover:bg-amber-accent/5 hover:border-amber-accent/40 hover:text-amber-accent"
-          }
-        `}
+        className={`relative flex items-center gap-1.5 py-1 px-2 rounded text-[13px] cursor-pointer transition-colors ${
+          active
+            ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+        }`}
       >
-        <div className="flex items-center gap-2">
-          {hasChildren && (
-            <span className={`text-xs inline-block transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}>▶</span>
-          )}
-          {icon && <span className="dark-icon">{icon}</span>}
-          <span className="truncate">{label}</span>
-        </div>
+        {active && <span className="absolute -left-1 top-1 bottom-1 w-0.5 bg-[var(--accent)] rounded-full" />}
+        {hasChildren && (
+          <span className={`text-[10px] inline-block transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}>▶</span>
+        )}
+        {icon && <span className="dark-icon">{icon}</span>}
+        <span className="truncate">{label}</span>
       </div>
 
-      {hasChildren && expanded && <div className="ml-4 mt-1">{children}</div>}
+      {hasChildren && expanded && <div className="ml-3 mt-0.5">{children}</div>}
     </div>
   );
 }

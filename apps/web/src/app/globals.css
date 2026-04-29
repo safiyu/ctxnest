@@ -9,6 +9,14 @@
   --text-primary: #0F172A;
   --text-secondary: #334155;
   --border: #E2E8F0;
+
+  --accent: #D4903A;
+  --accent-soft: rgba(212, 144, 58, 0.14);
+  --success: #059669;
+  --warning: #D97706;
+  --danger: #DC2626;
+
+  /* --font-sans / --font-mono / --font-title come from next/font in layout.tsx */
 }
 
 .dark {
@@ -18,6 +26,12 @@
   --text-primary: #F1F5F9;
   --text-secondary: #94A3B8;
   --border: #334155;
+
+  --accent: #D4903A;
+  --accent-soft: rgba(212, 144, 58, 0.14);
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
 }
 
 /* Light theme specific adjustments for icons/emojis */
@@ -30,7 +44,7 @@ html:not(.dark) .dark-icon {
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
@@ -38,15 +52,15 @@ body {
 }
 
 @media (min-width: 1440px) {
-  body { font-size: 15px; }
-}
-
-@media (min-width: 1920px) {
   body { font-size: 16px; }
 }
 
+@media (min-width: 1920px) {
+  body { font-size: 17px; }
+}
+
 @media (max-width: 768px) {
-  body { font-size: 13px; }
+  body { font-size: 14px; }
 }
 
 /* Thin scrollbar styling */

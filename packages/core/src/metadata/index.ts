@@ -3,7 +3,7 @@
  * Handles tags, favorites, search, project registration, and file discovery
  */
 
-import { readdirSync, statSync, readFileSync } from "node:fs";
+import { readdirSync, lstatSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { join, basename, extname } from "node:path";
 import { getDatabase } from "../db/index.js";
 import type { TagRecord, ProjectRecord, FileRecord, SearchFilters } from "../types.js";
@@ -136,8 +136,15 @@ export function registerProject(
 /**
  * Unregister a project and remove all its file metadata
  */
-export function unregisterProject(projectId: number): void {
+export function unregisterProject(projectId: number, dataDir?: string): void {
   const db = getDatabase();
+
+  // Capture project slug before we drop the row so we can clean up its
+  // backup subtree (otherwise re-registering the project later would
+  // re-ingest stale orphan files from data/backups/<slug>/).
+  const project = db.prepare("SELECT slug FROM projects WHERE id = ?").get(projectId) as
+    | { slug: string }
+    | undefined;
 
   db.transaction(() => {
     // 1. Get all file IDs associated with the project
@@ -158,6 +165,19 @@ export function unregisterProject(projectId: number): void {
     // 4. Delete the project
     db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
   })();
+
+  // 5. Outside the txn: remove the project's backup subtree on disk so the
+  // next syncBackup doesn't resurrect ghost files. Best-effort; log on fail.
+  if (dataDir && project?.slug) {
+    const backupSubtree = join(dataDir, "backups", project.slug);
+    try {
+      if (existsSync(backupSubtree)) {
+        rmSync(backupSubtree, { recursive: true, force: true });
+      }
+    } catch (e) {
+      console.warn("unregisterProject: failed to remove backup subtree:", e);
+    }
+  }
 }
 
 /**
@@ -174,50 +194,62 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
 
   const projectPath = project.path;
   const discoveredFiles: FileRecord[] = [];
+  // Cap size to keep huge files from blowing up memory and the FTS index.
+  const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MiB
 
-  // Recursively scan for .md files
   function scanDirectory(dir: string): void {
-    const entries = readdirSync(dir);
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch (e) {
+      // EACCES, ENOENT, etc. - skip the whole subtree but keep going.
+      return;
+    }
 
     for (const entry of entries) {
       const fullPath = join(dir, entry);
-      const stat = statSync(fullPath);
+      let lst;
+      try {
+        lst = lstatSync(fullPath);
+      } catch (e) {
+        continue;
+      }
+      // Skip symlinks entirely - prevents loops and prevents reading files
+      // outside the project tree via a symlink.
+      if (lst.isSymbolicLink()) continue;
 
-      if (stat.isDirectory()) {
-        // Skip node_modules and .git
-        if (entry === "node_modules" || entry === ".git") {
-          continue;
-        }
+      if (lst.isDirectory()) {
+        if (entry === "node_modules" || entry === ".git") continue;
         scanDirectory(fullPath);
-      } else if (stat.isFile() && extname(entry) === ".md") {
-        // Check if file already exists in DB
-        const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(fullPath) as { id: number } | undefined;
-        if (existing) {
+      } else if (lst.isFile() && extname(entry) === ".md") {
+        if (lst.size > MAX_FILE_BYTES) {
+          console.warn(`discoverFiles: skipping ${fullPath} (size ${lst.size} > ${MAX_FILE_BYTES})`);
           continue;
         }
+        try {
+          // Check if file already exists in DB
+          const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(fullPath) as { id: number } | undefined;
+          if (existing) continue;
 
-        // Read file content
-        const content = readFileSync(fullPath, "utf8");
-        const contentHash = computeHash(content);
+          const content = readFileSync(fullPath, "utf8");
+          const contentHash = computeHash(content);
+          const title = basename(entry, ".md");
 
-        // Extract title from filename (without .md extension)
-        const title = basename(entry, ".md");
+          const insertStmt = db.prepare(`
+            INSERT INTO files (path, title, project_id, storage_type, content_hash)
+            VALUES (?, ?, ?, 'reference', ?)
+          `);
+          const result = insertStmt.run(fullPath, title, projectId, contentHash);
+          const fileId = Number(result.lastInsertRowid);
 
-        // Insert into database
-        const insertStmt = db.prepare(`
-          INSERT INTO files (path, title, project_id, storage_type, content_hash)
-          VALUES (?, ?, ?, 'reference', ?)
-        `);
-        const result = insertStmt.run(fullPath, title, projectId, contentHash);
-        const fileId = Number(result.lastInsertRowid);
+          const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
+          ftsStmt.run(fileId, title, content);
 
-        // Insert into FTS5 index
-        const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
-        ftsStmt.run(fileId, title, content);
-
-        // Get the created record
-        const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
-        discoveredFiles.push(fileRecord);
+          const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
+          discoveredFiles.push(fileRecord);
+        } catch (e) {
+          console.warn(`discoverFiles: failed for ${fullPath}:`, e);
+        }
       }
     }
   }

@@ -22,10 +22,10 @@ const LG_PARTICLES: ParticleDef[] = [
 
 const CONFIG = {
   sm: {
-    imgClass: "h-24 w-auto",
+    imgClass: "h-11 w-auto",
     floatClass: "",
-    particles: [],
-    orbitRadius: 0,
+    particles: SM_PARTICLES,
+    orbitRadius: 26,
   },
   lg: {
     imgClass: "h-[120px] w-auto",

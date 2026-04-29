@@ -4,9 +4,10 @@ export async function register() {
     const path = await import("node:path");
 
     const dataDir = process.env.CTXNEST_DATA_DIR || path.join(process.cwd(), "../../data");
+    const wsPort = Number(process.env.WS_PORT) || 3001;
 
-    startWebSocketServer(3001, [dataDir]);
+    startWebSocketServer(wsPort, [dataDir]);
 
-    console.log("[CtxNest] WebSocket server started on :3001");
+    console.log(`[CtxNest] WebSocket server started on :${wsPort}`);
   }
 }

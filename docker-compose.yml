@@ -1,14 +1,29 @@
 services:
   ctxnest:
-    build: .
+    build:
+      context: .
+      args:
+        # Baked into the client bundle. Must match WS_PORT below.
+        WS_PORT: "3001"
     container_name: ctxnest
     ports:
       - "3000:3000"
+      - "3001:3001"
     volumes:
       - ./ctxnest-data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - WS_PORT=3001
+      # Inside the container the WS server must listen on all interfaces so
+      # the published port reaches it. The in-process default is 127.0.0.1.
+      - CTXNEST_WS_HOST=0.0.0.0
       - CTXNEST_DATA_DIR=/app/data
       - CTXNEST_DB_PATH=/app/data/ctxnest.db
     restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

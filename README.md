@@ -10,7 +10,7 @@
 
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
-## 🧠 Why CtxNest?
+## Why CtxNest?
 
 Standard Git is built for code, but CtxNest is built for **Context**. While your context files live inside your project repo, CtxNest manages them with a dedicated synchronization layer that offers three critical advantages:
 
@@ -23,7 +23,7 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
 - **"Sync All" Architecture**: One-click global synchronization across all your registered projects.
 - **Git Wizard Integration**: A seamless Git authentication flow supporting SSH, HTTPS (PAT), and CLI auth paths.
@@ -34,7 +34,7 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 - **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
 - **Time Travel**: Built-in Git versioning for every single edit, even in your personal Knowledge Base.
 
-## 🤖 AI Agent Capabilities
+## AI Agent Capabilities
 
 CtxNest transforms your AI assistant from a simple chatbot into a high-context collaborator:
 
@@ -51,7 +51,7 @@ CtxNest transforms your AI assistant from a simple chatbot into a high-context c
 6.  **Live Awareness**: Agents instantly "see" your local documentation edits via the file watcher.
     *   *Prompt: "I just updated the API schema on disk, please re-scan the context."*
 
-## 🚀 A Local-First RAG Alternative
+## A Local-First RAG Alternative
 
 CtxNest is a high-performance alternative to traditional cloud-based RAG (Retrieval-Augmented Generation) systems, specifically optimized for developer workflows:
 
@@ -60,40 +60,185 @@ CtxNest is a high-performance alternative to traditional cloud-based RAG (Retrie
 -   **Zero Token Waste**: Agents use the CtxNest API to "research" and "browse" your documentation first. This ensures they only pull the most relevant files into their context window, significantly reducing LLM costs.
 -   **Privacy by Default**: Your "RAG data" never leaves your local machine or your private Git vault. No third-party vector clouds or external indexing services are required.
 
-## 🐳 Quick Start (Docker)
+## Quick Start (Docker)
 
-The fastest way to deploy CtxNest is using Docker Compose:
+The fastest way to deploy CtxNest is using Docker Compose. Requires Docker 24+ with the compose plugin — no Node or pnpm on the host.
 
 ```bash
 git clone <repository-url>
 cd ctxnest
 docker compose up -d --build
 ```
-Access the UI at `http://localhost:3000`. Data is persisted in `./ctxnest-data`.
 
-## 🛠 Installation (Local)
+Access the UI at `http://localhost:3000`. The compose file also publishes `3001` for the WebSocket file-watcher channel. Data is persisted in `./ctxnest-data` on the host. The container is wired with a healthcheck against `/api/health` (returns `{"status":"ok"}` once the SQLite handle is open).
+
+To change the WebSocket port, override at build time so the value is baked into the client bundle:
 
 ```bash
-pnpm install
-pnpm build
+docker compose build --build-arg WS_PORT=4001
+WS_PORT=4001 docker compose up -d
+```
+
+To stop and remove:
+```bash
+docker compose down            # keeps ./ctxnest-data
+docker compose down -v         # also removes volumes (does NOT delete bind-mounted data dir)
+```
+
+## Local Development Setup
+
+### Prerequisites
+
+| Tool | Version | Why |
+| :--- | :--- | :--- |
+| Node.js | **20.x LTS** | Required by Next 15 + React 19 |
+| pnpm | **9.15.0** (pinned via `packageManager`) | Package manager for the workspace |
+| git | 2.20+ | Sync engine shells out via `simple-git` at runtime |
+| C/C++ toolchain | platform-specific (see below) | `better-sqlite3` builds a native module on install |
+
+**Install pnpm** (matches the repo's pinned version):
+```bash
+# Option A: corepack (ships with Node)
+corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+# Option B: npm
+npm install -g pnpm@9.15.0
+```
+
+**Install the C/C++ toolchain** (only needed for the `better-sqlite3` build during `pnpm install`):
+- **Debian/Ubuntu:** `sudo apt install build-essential python3`
+- **Fedora/RHEL:** `sudo dnf install gcc-c++ make python3`
+- **macOS:** `xcode-select --install`
+- **Windows:** Install Visual Studio Build Tools with the "Desktop development with C++" workload
+
+### Repository Layout
+
+CtxNest is a pnpm + turbo monorepo:
+
+```
+ctxnest/
+├── apps/
+│   ├── web/        # Next.js 15 UI (App Router, React 19, Tailwind)
+│   └── mcp/        # MCP stdio server for AI agents
+├── packages/
+│   └── core/       # SQLite/FTS5, git engine, file watcher (@ctxnest/core)
+├── data/           # default runtime data (SQLite + global git vault + backups)
+├── docker-compose.yml
+├── Dockerfile
+├── pnpm-workspace.yaml
+└── turbo.json
+```
+
+`apps/web` and `apps/mcp` both depend on `@ctxnest/core` via `workspace:*`. The core package must be built once before either app can resolve its imports — `pnpm build` handles this automatically via turbo's dependency graph.
+
+### Install & First Build
+
+```bash
+git clone <repository-url>
+cd ctxnest
+pnpm install                # installs every workspace package, builds better-sqlite3
+pnpm build                  # builds @ctxnest/core first, then apps/web and apps/mcp
+```
+
+`pnpm install` may take a few minutes on first run while `better-sqlite3` compiles. If you see a build error here, your toolchain is missing — see Prerequisites.
+
+### Run in Development
+
+```bash
 pnpm dev
 ```
 
-## 🤖 MCP Integration
+This starts:
+- Next.js dev server on `http://localhost:3000` (with Turbopack hot reload)
+- WebSocket file-watcher on `127.0.0.1:3001` (auto-started by `instrumentation.ts`)
 
-To connect CtxNest to your AI tool, point it to the built server:
+The default data directory is `<repo>/data`. SQLite + WAL files, the global git vault, and per-project backup snapshots all land there. Override with `CTXNEST_DATA_DIR=/path/to/wherever pnpm dev`.
 
-- **Server Path**: `apps/mcp/dist/index.js`
-- **Environment**: 
-  - `CTXNEST_DATA_DIR`: Path to your data directory (e.g., `~/.ctxnest`).
-  - `CTXNEST_DB_PATH`: Path to your `ctxnest.db` (optional, defaults to `CTXNEST_DATA_DIR/ctxnest.db`).
+> [!IMPORTANT]
+> If you're modifying `packages/core` while developing, run `pnpm -C packages/core dev` in a second terminal — it's `tsc --watch` and rebuilds `dist/` on every save. Next dev loads core from `packages/core/dist/`, not from source, so changes won't appear without that watch process.
 
-Example for **Claude Code**:
+### Verify the Install
+
+With `pnpm dev` running:
+
+1. **UI loads:** open `http://localhost:3000` — the three-pane layout (folder tree / file list / content) renders.
+2. **Health endpoint:** `curl http://localhost:3000/api/health` returns `{"status":"ok"}`.
+3. **WebSocket connected:** open browser DevTools → Network → WS — a connection to `ws://localhost:3001` is open. Footer status bar shows `● synced …` or `● idle` (not red).
+
+### Run in Production (Standalone, without Docker)
+
+For most users, **Docker is the recommended production path** (see Quick Start above). The compose file already wires the healthcheck, port mapping, and data persistence.
+
+If you need to run standalone (e.g. behind a reverse proxy on a bare-metal host):
+
 ```bash
-claude mcp add ctxnest -s user -- node /path/to/apps/mcp/dist/index.js -e CTXNEST_DATA_DIR=/path/to/data
+pnpm build
+
+NODE_ENV=production \
+CTXNEST_DATA_DIR=/var/lib/ctxnest \
+PORT=3000 \
+WS_PORT=3001 \
+CTXNEST_WS_HOST=127.0.0.1 \
+node apps/web/.next/standalone/apps/web/server.js
 ```
 
-Manual configuration (**mcpServers.json**):
+You must also place `apps/web/.next/static/` and `apps/web/public/` adjacent to `server.js` in the standalone tree (the `Dockerfile` shows the exact layout). Reverse-proxy `/` to `:3000` and the WebSocket path to `:3001` if you want network access — leave both on `127.0.0.1` if the proxy is on the same host.
+
+### Tests
+
+```bash
+pnpm test                     # runs vitest across the workspace (currently: packages/core only)
+pnpm -C packages/core test    # same, scoped to core
+```
+
+Tests create temporary git repos under `packages/core/tests/test-data/` and never touch your real repo or your global git config.
+
+### Updating
+
+```bash
+git pull
+pnpm install                  # in case dependencies changed
+pnpm build                    # rebuild core + apps
+```
+
+If `packages/core/src/db/migrations/` gained new `.sql` files, they run automatically the next time the app boots and acquires the SQLite handle.
+
+### Troubleshooting
+
+- **`better-sqlite3` fails to build during `pnpm install`** — install the C/C++ toolchain (see Prerequisites), then `rm -rf node_modules && pnpm install`.
+- **`Cannot find module '@ctxnest/core'`** when starting the web app — you skipped the build step. Run `pnpm -C packages/core build` (or `pnpm build` from the root) once.
+- **`database is locked`** in dev — usually a leftover dev process holding the WAL handle. Stop all `pnpm dev` processes; if it persists, remove `data/ctxnest.db-shm` and `data/ctxnest.db-wal` and restart. The DB is cached on `globalThis` to survive HMR; first launches after a hard kill are the danger zone.
+- **WebSocket not connecting** — check that port 3001 is free (`lsof -i :3001` / `netstat -ano | findstr 3001`). The server binds to `127.0.0.1` by default. If your browser is on a different host, set `CTXNEST_WS_HOST=0.0.0.0` — but be aware this exposes file paths on your network (see [Operations](#operations)).
+- **Sync fails with "Configured global remote URL is not a valid git remote"** — only `https://`, `http://`, `ssh://`, `git://`, and scp-form (`user@host:path`) URLs are accepted. `file://` and credential helpers are rejected by design.
+- **MCP server returns "Database not initialized"** — ensure `CTXNEST_DATA_DIR` points to the same directory the web UI uses; the MCP server opens its own SQLite handle and reads from `$CTXNEST_DATA_DIR/ctxnest.db`.
+- **Build succeeds but `/` shows a placeholder asking for a tablet** — your viewport is below 768px. CtxNest targets tablet+ on the desktop UI; widen the window or open on a larger screen.
+
+## MCP Integration
+
+The MCP server is a **stdio** transport (`StdioServerTransport`). The host AI tool spawns it as a child process and communicates over stdin/stdout — no network port, no separate process to keep running.
+
+**Path & environment:**
+
+- **Server entry:** `apps/mcp/dist/index.js` (built by `pnpm build`). The package also exposes a `ctxnest-mcp` bin if you `pnpm link` it globally.
+- **`CTXNEST_DATA_DIR`** — **always set this explicitly.** It must be the same directory the web UI uses, otherwise the MCP server reads from a different SQLite database. The default fallback is `<cwd>/data`, where "cwd" is wherever your AI client launched the process from — that is rarely what you want.
+- **`CTXNEST_DB_PATH`** (optional) — defaults to `$CTXNEST_DATA_DIR/ctxnest.db`.
+
+The web UI and the MCP server can run against the same database simultaneously. SQLite WAL mode handles the concurrent reads, and the MCP server uses the same migration system, so first launch order doesn't matter.
+
+### Claude Code
+
+```bash
+claude mcp add ctxnest -s user \
+  -e CTXNEST_DATA_DIR=/absolute/path/to/your/data \
+  -- node /absolute/path/to/apps/mcp/dist/index.js
+```
+
+Note the order: `-s` and `-e` are flags to `claude mcp add` and must appear **before** the `--` separator. Anything after `--` is the command + args that Claude Code will spawn.
+
+### Manual configuration (`mcpServers.json`)
+
+For Claude Desktop, Cursor, Continue, Gemini CLI, and other clients that read a JSON config file:
+
 ```json
 {
   "mcpServers": {
@@ -108,8 +253,12 @@ Manual configuration (**mcpServers.json**):
 }
 ```
 
-Docker-based configuration (**mcpServers.json**):
-If you are running CtxNest in Docker, use `docker exec` to connect:
+Use absolute paths — most clients launch the process from their own working directory.
+
+### Docker-based configuration
+
+If CtxNest is running in the Docker container from Quick Start, use `docker exec` to spawn the MCP process inside the container. No `env` block is needed because `CTXNEST_DATA_DIR=/app/data` is already set on the container by the compose file:
+
 ```json
 {
   "mcpServers": {
@@ -121,16 +270,28 @@ If you are running CtxNest in Docker, use `docker exec` to connect:
 }
 ```
 
-## ⚙️ Configuration
+`-i` keeps stdin open (required for the stdio transport). `ctxnest` is the `container_name` from `docker-compose.yml` — change it if you renamed the container.
+
+## Configuration
 
 You can customize CtxNest behavior using the following environment variables:
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `CTXNEST_DATA_DIR` | Primary storage for Knowledge Base and Backups | `~/.ctxnest` |
-| `CTXNEST_DB_PATH` | Path to the SQLite database | `DATA_DIR/ctxnest.db` |
+| `CTXNEST_DATA_DIR` | Primary storage for Knowledge Base and Backups | `<repo>/data` (web), `/app/data` (Docker) |
+| `CTXNEST_DB_PATH` | Path to the SQLite database | `$CTXNEST_DATA_DIR/ctxnest.db` |
 | `PORT` | Web UI Port | `3000` |
-| `WS_PORT` | WebSocket Port for real-time updates | `3001` |
+| `WS_PORT` | WebSocket Port (server-side bind) | `3001` |
+| `NEXT_PUBLIC_WS_PORT` | WebSocket Port baked into the client bundle (set at build time) | `3001` |
+| `CTXNEST_WS_HOST` | Host the WebSocket server binds to | `127.0.0.1` (`0.0.0.0` in Docker) |
+
+The WebSocket server defaults to loopback because file paths flowing over it leak the local filesystem layout. Set `CTXNEST_WS_HOST=0.0.0.0` only when you need network access (the Docker compose file does this).
+
+### Operations
+
+- **Health check:** `GET /api/health` → `200 {"status":"ok"}` when SQLite responds, `503` otherwise.
+- **Global git remote:** only `https://`, `http://`, `ssh://`, `git://`, and scp-form (`user@host:path`) URLs are accepted. `file://` and other helpers are rejected.
+- **Minimum viewport:** the UI targets ≥768px. Below that, a placeholder is shown.
 
 ---
 
