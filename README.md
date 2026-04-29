@@ -2,7 +2,7 @@
   <img src="apps/web/src/components/theme/logo.png" alt="CtxNest Logo" width="180">
 </p>
 
-<h1 align="center">CtxNest v1.1</h1>
+<h1 align="center">CtxNest v2.0</h1>
 
 <p align="center">The Portable Intelligence Layer for Your Projects & Knowledge Base</p>
 

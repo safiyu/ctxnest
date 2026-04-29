@@ -1,4 +1,24 @@
 # Changelog
+ 
+## 2.0.0 (2026-04-29)
+
+### UI & UX Polish
+- **Dynamic Status Bar**:
+  - Redesigned the footer with a persistent project-specific sync button and a collapsible Global Sync menu.
+  - Added real-time synchronization feedback with animated status indicators and stage reporting (e.g., "preparing", "working").
+- **State Synchronization Fixes**:
+  - Resolved a critical bug where project folders appeared empty during transitions by implementing immediate state resets in `useFiles` and `useFolders` hooks.
+  - Eliminated the race condition between metadata loading and file list rendering.
+- **Visual Enhancements**:
+  - Upgraded the "Skeleton" loading state with a premium golden aesthetic to match the CtxNest brand identity.
+  - Refined the `.DS_Store` exclusion logic to keep the workspace clean and free of system clutter.
+
+### Maintenance & Security
+- **Code Pruning**:
+  - Identified and removed several legacy "dead code" components (`SyncPanel`, `GitWizardModal`, `UnregisterModal`, `FileItem`) to improve maintainability and bundle size.
+- **Git & Environment**:
+  - Standardized `.gitignore` to include system files and database artifacts.
+  - Cleaned up duplicate entries in configuration files.
 
 ## 1.1.0 (2026-04-28)
 
