@@ -2,21 +2,42 @@ import { NextResponse } from "next/server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-export async function GET() {
+// Cached for the lifetime of the process; both files only change between deploys.
+let cached: { version: string; changelog: string } | null = null;
+
+function loadAboutInfo() {
+  if (cached) return cached;
   const packagePath = path.join(process.cwd(), "package.json");
   const changelogPath = path.join(process.cwd(), "../../CHANGELOG.md");
 
-  const pkg = JSON.parse(readFileSync(packagePath, "utf-8"));
-  const changelogContent = readFileSync(changelogPath, "utf-8");
+  let version = "unknown";
+  let changelog = "";
 
-  // Extract last 5 sections (assuming sections start with ##)
-  const sections = changelogContent.split(/\n(?=## )/);
-  const last5Sections = sections.slice(0, 6).join("\n"); // Take 6 to include header + 5 sections
+  try {
+    const pkg = JSON.parse(readFileSync(packagePath, "utf-8"));
+    if (typeof pkg.version === "string") version = pkg.version;
+  } catch (e) {
+    console.warn("[/api/about] failed to read package.json:", e);
+  }
 
+  try {
+    const changelogContent = readFileSync(changelogPath, "utf-8");
+    const sections = changelogContent.split(/\n(?=## )/);
+    changelog = sections.slice(0, 6).join("\n"); // header + 5 releases
+  } catch (e) {
+    console.warn("[/api/about] failed to read CHANGELOG.md:", e);
+  }
+
+  cached = { version, changelog };
+  return cached;
+}
+
+export async function GET() {
+  const { version, changelog } = loadAboutInfo();
   return NextResponse.json({
     name: "CtxNest",
     author: "Safiyu",
-    version: pkg.version,
-    changelog: last5Sections,
+    version,
+    changelog,
   });
 }

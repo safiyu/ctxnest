@@ -11,9 +11,8 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Cache on globalThis so Next.js HMR / multiple module evaluations don't
-// orphan the SQLite handle (which would leave the WAL/SHM files locked
-// and cause "database is locked" errors in dev).
+// globalThis-cached so Next.js HMR / module duplication doesn't orphan
+// the handle and leave WAL/SHM files locked.
 declare global {
   // eslint-disable-next-line no-var
   var __ctxnestDb: Database.Database | null | undefined;
@@ -36,13 +35,9 @@ export function createDatabase(dbPath: string): Database.Database {
   db = new Database(dbPath);
   globalThis.__ctxnestDb = db;
 
-  // Enable WAL mode for better concurrency
   db.pragma("journal_mode = WAL");
-
-  // Enable foreign key constraints
   db.pragma("foreign_keys = ON");
 
-  // Run migrations
   runMigrations();
 
   if (!globalThis.__ctxnestDbCloseRegistered) {

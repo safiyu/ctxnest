@@ -7,30 +7,20 @@ import { createHash } from "node:crypto";
 import simpleGit, { SimpleGit, LogResult } from "simple-git";
 import { readFileSync, writeFileSync, copyFileSync, mkdirSync, existsSync, rmSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { join, relative, dirname, isAbsolute, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { getDatabase } from "../db/index.js";
 import { withLock } from "../util/safety.js";
 import type { ProjectRecord, FileRecord } from "../types.js";
 
-// Common env for every git invocation: never prompt for credentials, never
-// open a pager/editor, otherwise a stuck child process can hang the request.
+// Strip env that would let git spawn an editor/pager/credential helper —
+// any of those would hang a server-side request.
 function buildGitEnv(): Record<string, string | undefined> {
   const env: Record<string, string | undefined> = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
-  delete env.PAGER;
-  delete env.EDITOR;
-  delete env.VISUAL;
-  // simple-git's block-unsafe-operations-plugin rejects any operation when
-  // these are present in the inherited env. Strip everything it considers
-  // unsafe (we never want a credential helper or editor to spawn from a
-  // server-side git call).
   for (const k of [
-    "GIT_EDITOR",
-    "GIT_PAGER",
-    "GIT_SEQUENCE_EDITOR",
-    "GIT_ASKPASS",
-    "SSH_ASKPASS",
-    "GIT_PROXY_COMMAND",
-    "GIT_HTTP_USER_AGENT",
-    "GIT_EXTERNAL_DIFF",
+    "PAGER", "EDITOR", "VISUAL",
+    "GIT_EDITOR", "GIT_PAGER", "GIT_SEQUENCE_EDITOR",
+    "GIT_ASKPASS", "SSH_ASKPASS",
+    "GIT_PROXY_COMMAND", "GIT_HTTP_USER_AGENT", "GIT_EXTERNAL_DIFF",
   ]) {
     delete env[k];
   }
@@ -45,10 +35,8 @@ function gitFor(dir: string): SimpleGit {
 export function isValidGitRemoteUrl(url: string): boolean {
   if (typeof url !== "string" || url.length === 0 || url.length > 2048) return false;
   if (/[\s\x00-\x1f]/.test(url)) return false;
-  // Reject local file paths and dangerous helpers (file://, ext::, etc.)
   if (/^(file|ext):/i.test(url)) return false;
-  // scp-form: user@host:path (no scheme)
-  if (/^[A-Za-z0-9_.+-]+@[A-Za-z0-9.-]+:[^\s]+$/.test(url)) return true;
+  if (/^[A-Za-z0-9_.+-]+@[A-Za-z0-9.-]+:[^\s]+$/.test(url)) return true; // scp-form
   try {
     const u = new URL(url);
     return u.protocol === "https:" || u.protocol === "http:" || u.protocol === "ssh:" || u.protocol === "git:";
@@ -91,8 +79,7 @@ export async function commitFile(
     const relativePath = relative(repoDir, filePath);
 
     await git.add(relativePath);
-    // Scope the commit to this file only so concurrent activity in the repo
-    // (e.g. an in-flight syncBackup) cannot get swept into the wrong message.
+    // Path-scoped commit so concurrent activity in the repo can't get swept in.
     await git.commit(message, [relativePath], { "--no-verify": null });
   });
 }
@@ -158,46 +145,49 @@ export async function restoreVersion(
     const git: SimpleGit = gitFor(repoDir);
     const relativePath = relative(repoDir, filePath);
 
-    const content = await git.show([`${commitHash}:${relativePath}`]);
+    // cat-file (not simple-git's `show`) so non-utf-8 bytes survive intact.
+    const result = spawnSync(
+      "git",
+      ["-C", repoDir, "cat-file", "-p", `${commitHash}:${relativePath}`],
+      { env: buildGitEnv() as NodeJS.ProcessEnv, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 }
+    );
+    if (result.status !== 0) {
+      const err = result.stderr ? result.stderr.toString() : "unknown";
+      throw new Error(`git cat-file failed: ${err.trim()}`);
+    }
+    const contentBuffer = result.stdout as Buffer;
+    writeFileSync(filePath, contentBuffer);
 
-    // Write the content back to disk
-    writeFileSync(filePath, content, "utf8");
+    const contentForFts = contentBuffer.toString("utf-8");
 
-    // Sync DB row + FTS index so search and subsequent updates reflect
-    // the restored content (otherwise the next updateFile diff is huge
-    // and search returns the old text).
     try {
       const db = getDatabase();
       const file = db.prepare("SELECT id, title FROM files WHERE path = ?").get(filePath) as
         | { id: number; title: string }
         | undefined;
       if (file) {
-        const hash = createHash("sha256").update(content, "utf8").digest("hex");
-        db.prepare("UPDATE files SET content_hash = ?, updated_at = datetime('now') WHERE id = ?").run(
-          hash,
-          file.id
-        );
-        db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(file.id);
-        db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(
-          file.id,
-          file.title,
-          content
-        );
+        const hash = createHash("sha256").update(contentBuffer).digest("hex");
+        const updateStmt = db.prepare("UPDATE files SET content_hash = ?, updated_at = datetime('now') WHERE id = ?");
+        const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+        const insertFtsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
+        db.transaction(() => {
+          updateStmt.run(hash, file.id);
+          deleteFtsStmt.run(file.id);
+          insertFtsStmt.run(file.id, file.title, contentForFts);
+        })();
       }
     } catch (e) {
       console.warn("restoreVersion: DB/FTS sync failed:", e);
     }
 
-    // Commit the restore so it appears in history (instead of looking like
-    // a fresh edit on the next save).
     try {
       await git.add(relativePath);
       await git.commit(`Restore version ${commitHash.slice(0, 7)}`, [relativePath], { "--no-verify": null });
-    } catch (e) {
-      // Nothing to commit if content matches HEAD already; ignore.
+    } catch {
+      // No-op if content already matches HEAD.
     }
 
-    return content;
+    return contentForFts;
   });
 }
 
@@ -258,8 +248,7 @@ export async function syncBackup(
   dataDir: string,
   onStage?: (stage: SyncStage) => void
 ): Promise<string[]> {
-  // Whole sync runs under the per-dataDir git lock so concurrent commitFile
-  // calls cannot interleave with the rebuild/pull/push pipeline.
+  // Per-dataDir git lock prevents commitFile from interleaving with the pipeline.
   return await withLock(`git:${resolve(dataDir)}`, () => _syncBackupLocked(projectId, dataDir, onStage));
 }
 
@@ -272,52 +261,42 @@ async function _syncBackupLocked(
   stage("preparing");
   const db = getDatabase();
 
-  // Get project details
   const project = db
     .prepare("SELECT * FROM projects WHERE id = ?")
     .get(projectId) as ProjectRecord | undefined;
-
   if (!project) {
     throw new Error(`Project with id ${projectId} not found`);
   }
 
-  // Get all reference files for this project
   const files = db
     .prepare("SELECT * FROM files WHERE project_id = ? AND storage_type = 'reference'")
     .all(projectId) as FileRecord[];
 
   const copiedPaths: string[] = [];
   const backupDir = join(dataDir, "backups", project.slug);
-
-  // Ensure backup directory exists
   mkdirSync(backupDir, { recursive: true });
 
   const git: SimpleGit = gitFor(dataDir);
 
   try {
     await git.status();
-  } catch (error) {
-    // Git repo doesn't exist, initialize it
+  } catch {
     await git.init();
     await git.addConfig("user.email", "ctxnest@local");
     await git.addConfig("user.name", "CtxNest");
   }
 
-  // Handle remote pull if remote_url is configured. Ensure remote is set up.
   const globalRemoteUrl = await getGlobalRemote(dataDir);
   if (globalRemoteUrl) {
     if (!isValidGitRemoteUrl(globalRemoteUrl)) {
       throw new Error("Configured global remote URL is not a valid git remote");
     }
     try {
-      try {
-        await git.removeRemote("origin");
-      } catch (e) {}
+      try { await git.removeRemote("origin"); } catch {}
       await git.addRemote("origin", globalRemoteUrl);
-
       try {
         await git.raw(["rev-parse", "HEAD"]);
-      } catch (e) {
+      } catch {
         await git.commit("Initial commit", ["--allow-empty"]);
       }
     } catch (error) {
@@ -325,9 +304,8 @@ async function _syncBackupLocked(
     }
   }
 
-  // Capture HEAD before pull so we can ask git which files were actually
-  // deleted upstream (instead of inferring it from a snapshot diff, which
-  // mis-flags transient local-disk errors as "remote deletion").
+  // Capture HEAD pre-pull so STEP 3 can ask git which files were genuinely
+  // deleted upstream (vs inferring deletion from a local-snapshot diff).
   let preHead: string | null = null;
   try {
     preHead = (await git.revparse(["HEAD"])).trim();
@@ -335,40 +313,65 @@ async function _syncBackupLocked(
     preHead = null;
   }
 
-  // --- STEP 1: COPY LOCAL TRUTH INTO BACKUP DIR ---
-  // We rebuild the backup tree from disk every sync, but DO NOT delete DB
-  // rows for files that are temporarily missing on disk - that's the
-  // dangerous step from the old implementation. If the file is genuinely
-  // gone after a sync, the user can unregister/re-register; we won't
-  // silently drop their tags/favorites on a transient EACCES.
+  // STEP 1 — refresh backup tree from disk. We do NOT rmSync first: a
+  // transient EACCES would leave the file absent from the rebuild,
+  // `git add -A` would stage it as a deletion, and the next pull would
+  // unlink it from the user's source tree (the data-loss path STEP 3's
+  // diff guard was meant to prevent). Instead, overwrite in place and
+  // only prune orphans when every source file was accounted for.
   stage("staging local");
-  try {
-    rmSync(backupDir, { recursive: true, force: true });
-  } catch (e) {}
-  mkdirSync(backupDir, { recursive: true });
+  const expectedBackupPaths = new Set<string>();
+  let copyFailures = 0;
 
   for (const file of files) {
     if (!file.path || !project.path) continue;
     const relativePath = relative(project.path, file.path);
-    // Safety check to ensure file is actually inside the project
-    if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
-      continue;
-    }
-
-    if (!existsSync(file.path)) {
-      // Skip - do NOT delete the DB row. A transient FS error or a race
-      // with the watcher must not cost the user their metadata.
-      continue;
-    }
+    if (relativePath.startsWith("..") || isAbsolute(relativePath)) continue;
 
     const backupPath = join(backupDir, relativePath);
+
+    if (!existsSync(file.path)) {
+      if (existsSync(backupPath)) expectedBackupPaths.add(backupPath);
+      continue;
+    }
+
     mkdirSync(dirname(backupPath), { recursive: true });
     try {
       copyFileSync(file.path, backupPath);
+      expectedBackupPaths.add(backupPath);
       copiedPaths.push(backupPath);
     } catch (e) {
       console.warn(`syncBackup: failed to copy ${file.path}:`, e);
+      copyFailures++;
+      if (existsSync(backupPath)) expectedBackupPaths.add(backupPath);
     }
+  }
+
+  if (copyFailures === 0) {
+    const pruneOrphans = (dir: string): void => {
+      if (!existsSync(dir)) return;
+      let entries: string[];
+      try { entries = readdirSync(dir); } catch { return; }
+      for (const entry of entries) {
+        if (entry === ".git") continue;
+        const fullPath = join(dir, entry);
+        let st;
+        try { st = statSync(fullPath); } catch { continue; }
+        if (st.isDirectory()) {
+          pruneOrphans(fullPath);
+          try {
+            if (readdirSync(fullPath).length === 0) rmSync(fullPath, { recursive: true, force: true });
+          } catch {}
+        } else if (!expectedBackupPaths.has(fullPath)) {
+          try { unlinkSync(fullPath); } catch {}
+        }
+      }
+    };
+    pruneOrphans(backupDir);
+  } else {
+    console.warn(
+      `syncBackup: ${copyFailures} source file(s) failed to copy; skipping orphan pruning to avoid propagating phantom deletions`
+    );
   }
 
   const backupRelativeDir = relative(dataDir, backupDir);
@@ -380,7 +383,7 @@ async function _syncBackupLocked(
     await git.commit(`Sync local changes for project: ${project.name}`, undefined, { "--no-verify": null });
   }
 
-  // --- STEP 2: PULL REMOTE TRUTH (MERGE) ---
+  // STEP 2 — pull remote.
   let pullSucceeded = false;
   if (globalRemoteUrl) {
     stage("pulling remote");
@@ -393,7 +396,7 @@ async function _syncBackupLocked(
     }
   }
 
-  // --- STEP 3: SYNC MERGED TRUTH BACK TO LOCAL WORKSPACE ---
+  // STEP 3 — sync merged truth back to local workspace.
   function walkDir(dir: string, fileList: string[] = []) {
     if (!existsSync(dir)) return fileList;
     const entries = readdirSync(dir);
@@ -424,35 +427,52 @@ async function _syncBackupLocked(
       }
       mkdirSync(dirname(localAbsolutePath), { recursive: true });
 
-      // Copy remote changes back to local project
+      // Skip the write when local already matches — avoids mtime bumps
+      // that trigger a watcher refresh storm. Warn loudly when local
+      // diverged (we still take the merge result as truth).
       try {
-        copyFileSync(backupPath, localAbsolutePath);
+        let localBuf: Buffer | null = null;
+        try { localBuf = readFileSync(localAbsolutePath); } catch {}
+        const backupBuf = readFileSync(backupPath);
+
+        if (localBuf?.equals(backupBuf)) {
+          // already in sync
+        } else {
+          if (localBuf) {
+            console.warn(
+              `syncBackup: overwriting locally-modified ${localAbsolutePath} ` +
+                "with merged remote content (use git history if you need to recover)"
+            );
+          }
+          writeFileSync(localAbsolutePath, backupBuf);
+        }
       } catch (e) {
         console.warn(`syncBackup: failed to write ${localAbsolutePath}:`, e);
         continue;
       }
 
-      // If this file wasn't in the DB, a collaborator added it! Insert it.
       if (!existingDbPaths.has(localAbsolutePath)) {
         const title = relativePath.split("/").pop()?.replace(/\.md$/, "") || "Untitled";
         const content = readFileSync(localAbsolutePath, "utf-8");
         const contentHash = createHash("sha256").update(content).digest("hex");
-        const result = db.prepare(
+        const insertFileStmt = db.prepare(
           "INSERT OR IGNORE INTO files (path, title, project_id, storage_type, content_hash) VALUES (?, ?, ?, ?, ?)"
-        ).run(localAbsolutePath, title, project.id, "reference", contentHash);
-
-        if (result.changes > 0) {
-          db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(result.lastInsertRowid, title, content);
-        }
+        );
+        const insertFtsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
+        db.transaction(() => {
+          const result = insertFileStmt.run(localAbsolutePath, title, project.id, "reference", contentHash);
+          if (result.changes > 0) {
+            insertFtsStmt.run(result.lastInsertRowid, title, content);
+          }
+        })();
         copiedPaths.push(localAbsolutePath);
       }
     }
   }
 
-  // --- Handle remote deletions: ONLY when git tells us the file was deleted
-  // upstream between preHead..HEAD. Never infer from "missing from snapshot",
-  // which the old code did and which silently rm'd files in the user's
-  // source repo when local copy hiccuped.
+  // Remote-side deletions: trust git's own diff between preHead and the
+  // post-pull HEAD. Inferring from "missing in local snapshot" would
+  // unlink files in the user's source tree on any local copy hiccup.
   if (pullSucceeded && preHead && project.path) {
     let postHead: string | null = null;
     try {
@@ -478,8 +498,6 @@ async function _syncBackupLocked(
 
       const projectResolved = resolve(project.path);
       for (const repoRel of deletedRel) {
-        // repoRel is relative to dataDir (e.g. "backups/<slug>/foo/bar.md").
-        // Convert to a path relative to the project root.
         const insideBackup = relative(backupRelativeDir, repoRel);
         if (insideBackup.startsWith("..") || isAbsolute(insideBackup)) continue;
         const localAbsolutePath = join(project.path, insideBackup);
@@ -496,14 +514,18 @@ async function _syncBackupLocked(
         }
         const dbRow = db.prepare("SELECT id FROM files WHERE path = ?").get(localAbsolutePath) as { id: number } | undefined;
         if (dbRow) {
-          db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(dbRow.id);
-          db.prepare("DELETE FROM files WHERE id = ?").run(dbRow.id);
+          const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+          const deleteFileStmt = db.prepare("DELETE FROM files WHERE id = ?");
+          db.transaction(() => {
+            deleteFtsStmt.run(dbRow.id);
+            deleteFileStmt.run(dbRow.id);
+          })();
         }
       }
     }
   }
 
-  // --- STEP 4: PUSH TO GITHUB ---
+  // STEP 4 — push.
   if (globalRemoteUrl) {
     stage("pushing");
     try {

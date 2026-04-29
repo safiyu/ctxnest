@@ -4,7 +4,7 @@
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve, sep } from "node:path";
 import { getDatabase } from "../db/index.js";
 import { commitFile } from "../git/index.js";
 import { assertPathInside, escapeLike } from "../util/safety.js";
@@ -87,7 +87,6 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   const db = getDatabase();
   const { title, content, destination, projectId, folder, tags = [], dataDir } = opts;
 
-  // Determine the file path and storage type based on destination
   let filePath: string;
   let storageType: StorageType;
 
@@ -98,7 +97,6 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   const filename = `${slug}.md`;
 
   if (destination === "knowledge") {
-    // knowledge → data/knowledge/
     const knowledgeDir = join(dataDir, "knowledge");
     mkdirSync(knowledgeDir, { recursive: true });
     filePath = folder
@@ -106,16 +104,13 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
       : assertPathInside(knowledgeDir, filename);
     storageType = "local";
   } else if (destination === "ctxnest") {
-    // ctxnest → data/projects/{slug}/
     if (!projectId) {
       throw new Error("projectId is required for ctxnest destination");
     }
-
     const project = db.prepare("SELECT slug FROM projects WHERE id = ?").get(projectId) as { slug: string } | undefined;
     if (!project) {
       throw new Error(`Project not found: ${projectId}`);
     }
-
     const projectDir = join(dataDir, "projects", project.slug);
     mkdirSync(projectDir, { recursive: true });
     filePath = folder
@@ -123,16 +118,13 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
       : assertPathInside(projectDir, filename);
     storageType = "local";
   } else if (destination === "project") {
-    // project → external project path
     if (!projectId) {
       throw new Error("projectId is required for project destination");
     }
-
     const project = db.prepare("SELECT path FROM projects WHERE id = ?").get(projectId) as { path: string | null } | undefined;
     if (!project || !project.path) {
       throw new Error(`Project path not found for project: ${projectId}`);
     }
-
     filePath = folder
       ? assertPathInside(project.path, join(folder, filename))
       : assertPathInside(project.path, filename);
@@ -141,53 +133,45 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
     throw new Error(`Unknown destination: ${destination}`);
   }
 
-  // Ensure directory exists
   mkdirSync(dirname(filePath), { recursive: true });
-
-  // Write file to disk
   writeFileSync(filePath, content, "utf8");
-
-  // Compute hash
   const contentHash = computeHash(content);
 
-  // Insert into database
+  // Files + FTS + tag links in one txn so a partial failure can't leave
+  // a row that's unsearchable forever.
   const insertStmt = db.prepare(`
     INSERT INTO files (path, title, project_id, storage_type, content_hash)
     VALUES (?, ?, ?, ?, ?)
   `);
-
-  const result = insertStmt.run(filePath, title, projectId || null, storageType, contentHash);
-  const fileId = Number(result.lastInsertRowid);
-
-  // Add tags if provided
-  if (tags.length > 0) {
-    const insertTagStmt = db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)");
-    const getTagStmt = db.prepare("SELECT id FROM tags WHERE name = ?");
-    const linkTagStmt = db.prepare("INSERT INTO file_tags (file_id, tag_id) VALUES (?, ?)");
-
-    for (const tagName of tags) {
-      insertTagStmt.run(tagName);
-      const tag = getTagStmt.get(tagName) as { id: number };
-      linkTagStmt.run(fileId, tag.id);
-    }
-  }
-
-  // Insert into FTS5 index
+  const insertTagStmt = db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)");
+  const getTagStmt = db.prepare("SELECT id FROM tags WHERE name = ?");
+  const linkTagStmt = db.prepare("INSERT INTO file_tags (file_id, tag_id) VALUES (?, ?)");
   const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
-  ftsStmt.run(fileId, title, content);
 
-  // Retrieve the created record
+  const fileId: number = db.transaction(() => {
+    const result = insertStmt.run(filePath, title, projectId || null, storageType, contentHash);
+    const id = Number(result.lastInsertRowid);
+
+    if (tags.length > 0) {
+      for (const tagName of tags) {
+        insertTagStmt.run(tagName);
+        const tag = getTagStmt.get(tagName) as { id: number };
+        linkTagStmt.run(id, tag.id);
+      }
+    }
+
+    ftsStmt.run(id, title, content);
+    return id;
+  })();
+
   const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
 
-  // Automatic Versioning: Commit new file to Git
+  // Reference files version against their project's own git, not the data dir.
   try {
     let repoDir = dataDir;
-    // If it's a reference file in an external project, commit to the project's own git
     if (storageType === "reference" && projectId) {
       const project = db.prepare("SELECT path FROM projects WHERE id = ?").get(projectId) as { path: string | null } | undefined;
-      if (project?.path) {
-        repoDir = project.path;
-      }
+      if (project?.path) repoDir = project.path;
     }
     await commitFile(repoDir, filePath, `Create context file: ${title}`);
   } catch (error) {
@@ -230,43 +214,35 @@ export async function updateFile(id: number, content: string, dataDir: string): 
     throw new Error(`File not found: ${id}`);
   }
 
-  // Write new content to disk
   writeFileSync(fileRecord.path, content, "utf8");
-
-  // Compute new hash
   const contentHash = computeHash(content);
 
-  // Update database
+  // Atomic so a partial failure can't leave the FTS index pointing at stale content.
   const updateStmt = db.prepare(`
     UPDATE files
     SET content_hash = ?, updated_at = datetime('now')
     WHERE id = ?
   `);
-  updateStmt.run(contentHash, id);
-
-  // Update FTS5 index
   const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
-  deleteFtsStmt.run(id);
-
   const insertFtsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
-  insertFtsStmt.run(id, fileRecord.title, content);
 
-  // Automatic Versioning: Commit update to Git
+  db.transaction(() => {
+    updateStmt.run(contentHash, id);
+    deleteFtsStmt.run(id);
+    insertFtsStmt.run(id, fileRecord.title, content);
+  })();
+
   try {
     let repoDir = dataDir;
-    // If it's a reference file in an external project, commit to the project's own git
     if (fileRecord.storage_type === "reference" && fileRecord.project_id) {
       const project = db.prepare("SELECT path FROM projects WHERE id = ?").get(fileRecord.project_id) as { path: string | null } | undefined;
-      if (project?.path) {
-        repoDir = project.path;
-      }
+      if (project?.path) repoDir = project.path;
     }
     await commitFile(repoDir, fileRecord.path, `Update context file: ${fileRecord.title}`);
   } catch (error) {
     console.warn("Git auto-commit failed during update:", error);
   }
 
-  // Return updated record
   const updatedRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(id) as FileRecord;
   return {
     ...updatedRecord,
@@ -275,20 +251,25 @@ export async function updateFile(id: number, content: string, dataDir: string): 
 }
 
 /**
- * Delete a file (DB and disk)
+ * Delete a file. Always removes the DB row; only unlinks from disk when
+ * the file is inside `<dataDir>/knowledge/` (project files are never
+ * physically deleted — we only un-index).
  */
-export function deleteFile(id: number): void {
+export function deleteFile(id: number, dataDir?: string): void {
   const db = getDatabase();
 
-  // Get file info first
-  const file = db.prepare("SELECT path, storage_type FROM files WHERE id = ?").get(id) as { path: string, storage_type: string } | undefined;
-  
-  if (file) {
-    // Safety: We only physically delete files from the Knowledge Base (where project_id is null).
-    // For project files, we only "un-index" them from the database to avoid accidental data loss in the project repo.
-    const dbRecord = db.prepare("SELECT project_id FROM files WHERE id = ?").get(id) as { project_id: number | null } | undefined;
-    
-    if (dbRecord && dbRecord.project_id === null) {
+  const file = db.prepare("SELECT path, project_id FROM files WHERE id = ?").get(id) as
+    | { path: string; project_id: number | null }
+    | undefined;
+
+  if (file && dataDir) {
+    const knowledgeRoot = resolve(dataDir, "knowledge");
+    const filePathResolved = resolve(file.path);
+    const inKnowledge =
+      filePathResolved === knowledgeRoot ||
+      filePathResolved.startsWith(knowledgeRoot + sep);
+
+    if (file.project_id === null && inKnowledge) {
       try {
         if (existsSync(file.path)) {
           unlinkSync(file.path);
@@ -299,13 +280,13 @@ export function deleteFile(id: number): void {
     }
   }
 
-  // Delete from FTS5 index
+  // CASCADE handles file_tags + favorites via the files row deletion.
   const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
-  deleteFtsStmt.run(id);
-
-  // Delete from files table (CASCADE will handle file_tags and favorites)
   const deleteStmt = db.prepare("DELETE FROM files WHERE id = ?");
-  deleteStmt.run(id);
+  db.transaction(() => {
+    deleteFtsStmt.run(id);
+    deleteStmt.run(id);
+  })();
 }
 
 /**
@@ -364,8 +345,12 @@ export function listFiles(opts: ListFilesOptions): FileRecord[] {
     }
 
     if (filters.folder !== undefined) {
-      sql += " AND path LIKE ? ESCAPE '\\'";
-      params.push(`%${escapeLike(filters.folder)}%`);
+      // Anchor on path-segment boundaries (POSIX + Windows variants)
+      // so `src` doesn't match `src-of-something`.
+      const segment = escapeLike(filters.folder);
+      sql += " AND (path LIKE ? ESCAPE '\\' OR path LIKE ? ESCAPE '\\')";
+      params.push(`%/${segment}/%`);
+      params.push(`%\\${segment}\\%`);
     }
   }
 
@@ -396,17 +381,12 @@ export function moveFile(id: number, newPath: string): FileRecord {
     throw new Error(`File not found: ${id}`);
   }
 
-  // Ensure destination directory exists
   mkdirSync(dirname(newPath), { recursive: true });
-
-  // Move file on disk
   renameSync(fileRecord.path, newPath);
 
-  // Update path in database
   const updateStmt = db.prepare("UPDATE files SET path = ?, updated_at = datetime('now') WHERE id = ?");
   updateStmt.run(newPath, id);
 
-  // Return updated record
   const updatedRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(id) as FileRecord;
   return updatedRecord;
 }

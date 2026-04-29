@@ -36,8 +36,6 @@ interface FileListProps {
   onSync: () => void;
   onUnregisterProject?: () => void;
   onDeleteFolder?: () => void;
-  /** True while the files list is being fetched. Used to show a skeleton
-   *  instead of the misleading "folder is empty" state during initial load. */
   loading?: boolean;
 }
 
@@ -61,14 +59,9 @@ export function FileList({
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
-    // Branch on selectedSection FIRST. The previous version inferred mode
-    // from path-data presence, which on hard-refresh races (basePath +
-    // selectedProject?.path both null while async hooks settle) fell into
-    // the KB legacy fallback even when the user was in projects mode —
-    // producing a false "folder is empty" until back-and-forth clicks
-    // gave the data time to load.
+    // Branch on selectedSection first. Inferring mode from path-data
+    // presence races on hard refresh and falsely shows "folder is empty".
     if (selectedSection === "projects") {
-      // Project mode — narrow to the project's files first.
       if (selectedProject) {
         result = result.filter((f) => f.project_id === selectedProject.id);
         if (selectedFolder) {
@@ -78,13 +71,9 @@ export function FileList({
             const folderPrefix = normalizedBase + selectedFolder + "/";
             result = result.filter((f) => f.path.startsWith(folderPrefix));
           }
-          // Path data not loaded yet: stay on the project-wide list rather
-          // than narrowing to nothing. The folder filter applies on the
-          // next render once useFolders/useProjects resolve.
+          // base not loaded yet -> stay on project-wide list (next render narrows).
         }
       } else {
-        // selectedProjectId set but the project record hasn't loaded yet —
-        // show nothing rather than wrong things.
         result = [];
       }
     } else if (selectedSection === "knowledge") {
@@ -94,13 +83,10 @@ export function FileList({
         const folderPrefix = normalizedBase + selectedFolder + "/";
         result = result.filter((f) => f.path.startsWith(folderPrefix));
       }
-      // basePath missing: stay on the KB-wide list (same rationale as above).
     } else {
-      // No section selected.
       result = [];
     }
 
-    // Sort files
     switch (sortBy) {
       case "name":
         result.sort((a, b) => a.title.localeCompare(b.title));
@@ -178,9 +164,6 @@ export function FileList({
             );
           })
         ) : loading || (selectedSection === "projects" && !selectedProject) ? (
-          // Skeleton: prevents the misleading "folder is empty" flash while
-          // the files list is mid-fetch. Render a few placeholder rows that
-          // match the real row layout (title line + meta line).
           <div aria-label="Loading files" role="status">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="px-3 py-2 border-b border-[var(--bg-tertiary)]">

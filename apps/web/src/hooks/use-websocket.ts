@@ -7,13 +7,29 @@ export function useWebSocket(onEvent: (event: { type: string; path: string }) =>
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    // NEXT_PUBLIC_WS_PORT is baked at build time; falls back to 3001.
     const wsPort = process.env.NEXT_PUBLIC_WS_PORT || "3001";
-    const wsUrl = `${protocol}//${window.location.hostname}:${wsPort}`;
+    const wsToken = process.env.NEXT_PUBLIC_WS_TOKEN || "";
+    const tokenSuffix = wsToken ? `?token=${encodeURIComponent(wsToken)}` : "";
+    const wsUrl = `${protocol}//${window.location.hostname}:${wsPort}${tokenSuffix}`;
     let ws: WebSocket | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout>;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const detach = (socket: WebSocket | null) => {
+      if (!socket) return;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+    };
 
     const connect = () => {
+      if (cancelled) return;
+      // Tear down any previous socket so a stale close can't double-reconnect.
+      if (ws) {
+        detach(ws);
+        try { ws.close(); } catch {}
+        ws = null;
+      }
       ws = new WebSocket(wsUrl);
       ws.onmessage = (msg) => {
         try {
@@ -22,17 +38,20 @@ export function useWebSocket(onEvent: (event: { type: string; path: string }) =>
         } catch {}
       };
       ws.onclose = () => {
+        if (cancelled) return;
         reconnectTimer = setTimeout(connect, 3000);
       };
-      ws.onerror = () => {
-        ws?.close();
-      };
+      // onerror is always followed by onclose; closing here would leak a socket.
+      ws.onerror = () => {};
     };
 
     connect();
     return () => {
-      clearTimeout(reconnectTimer);
-      ws?.close();
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      detach(ws);
+      try { ws?.close(); } catch {}
+      ws = null;
     };
   }, []);
 }

@@ -38,6 +38,6 @@ export async function DELETE(
 ) {
   ensureDbInitialized();
   const { id } = await params;
-  deleteFile(parseInt(id, 10));
+  deleteFile(parseInt(id, 10), DATA_DIR);
   return NextResponse.json({ success: true });
 }

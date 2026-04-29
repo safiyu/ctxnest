@@ -19,10 +19,13 @@ export function createFileWatcher(
   watchPaths: string[],
   onEvent: (event: WatcherEvent) => void
 ): FSWatcher {
+  // Auto-ingest scope: files under <dataDir>/knowledge/ or a registered
+  // project. Anything else is ignored (stray files would otherwise be
+  // adopted as KB and could then be unlinked from disk on UI delete).
+  const knowledgeDirs = watchPaths.map((wp) => path.join(wp, "knowledge"));
+
   const watcher = chokidar.watch(watchPaths, {
-    // Ignore dotfiles, node_modules, .git anywhere in the path, AND any file
-    // that lives under a `backups/` directory (those are owned by syncBackup
-    // and must not be re-ingested as standalone reference rows).
+    // backups/ is owned by syncBackup; never re-ingest its files as standalone rows.
     ignored: (p: string) =>
       /(^|[\/\\])(\.|node_modules|\.git)/.test(p) ||
       /[\/\\]backups[\/\\]/.test(p),
@@ -39,7 +42,7 @@ export function createFileWatcher(
 
   watcher.on("add", (filePath) => {
     if (!filePath.endsWith(".md")) return;
-    handleWatcherAdd(filePath);
+    handleWatcherAdd(filePath, knowledgeDirs);
     onEvent({ type: "add", path: filePath });
   });
 
@@ -52,15 +55,13 @@ export function createFileWatcher(
   return watcher;
 }
 
-function handleWatcherAdd(filePath: string): void {
+function handleWatcherAdd(filePath: string, knowledgeDirs: string[]): void {
   try {
     const db = getDatabase();
     // Check if already in DB
     const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(filePath);
     if (existing) return;
 
-    // Determine project_id with proper containment check (path.relative)
-    // so /foo/bar doesn't match /foo/bar2 by string-prefix.
     let projectId: number | null = null;
     const projects = db.prepare("SELECT id, path FROM projects WHERE path IS NOT NULL").all() as { id: number, path: string }[];
     for (const p of projects) {
@@ -70,20 +71,26 @@ function handleWatcherAdd(filePath: string): void {
       }
     }
 
-    // Infer storage_type from where the file lives:
-    // - inside a project root => "reference"
-    // - elsewhere (e.g. data/knowledge) => "local"
+    const isKnowledge = knowledgeDirs.some((kd) => isUnder(filePath, kd));
+    if (projectId === null && !isKnowledge) return;
+
     const storageType = projectId !== null ? "reference" : "local";
 
     const content = fs.readFileSync(filePath, "utf-8");
     const hash = crypto.createHash("sha256").update(content).digest("hex");
     const title = filePath.split(/[/\\]/).pop()?.replace(/\.md$/, "") || "Untitled";
 
-    const result = db.prepare(
-      "INSERT INTO files (path, title, project_id, storage_type, content_hash) VALUES (?, ?, ?, ?, ?)"
-    ).run(filePath, title, projectId, storageType, hash);
-
-    db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(result.lastInsertRowid, title, content);
+    // OR IGNORE + skip-FTS-on-no-change covers the discoverFiles race.
+    const insertStmt = db.prepare(
+      "INSERT OR IGNORE INTO files (path, title, project_id, storage_type, content_hash) VALUES (?, ?, ?, ?, ?)"
+    );
+    const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
+    db.transaction(() => {
+      const result = insertStmt.run(filePath, title, projectId, storageType, hash);
+      if (result.changes > 0) {
+        ftsStmt.run(result.lastInsertRowid, title, content);
+      }
+    })();
   } catch (e) {
     // DB not initialized or read failed
   }
@@ -94,8 +101,12 @@ function handleWatcherUnlink(filePath: string): void {
     const db = getDatabase();
     const file = db.prepare("SELECT id FROM files WHERE path = ?").get(filePath) as { id: number } | undefined;
     if (file) {
-      db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(file.id);
-      db.prepare("DELETE FROM files WHERE id = ?").run(file.id);
+      const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+      const deleteFileStmt = db.prepare("DELETE FROM files WHERE id = ?");
+      db.transaction(() => {
+        deleteFtsStmt.run(file.id);
+        deleteFileStmt.run(file.id);
+      })();
     }
   } catch (e) {
     // DB not initialized
@@ -111,9 +122,14 @@ function updateFileHash(filePath: string): void {
       | { id: number; title: string }
       | undefined;
     if (file) {
-      db.prepare("UPDATE files SET content_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(hash, file.id);
-      db.prepare("DELETE FROM fts_index WHERE rowid = ?").run(file.id);
-      db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)").run(file.id, file.title, content);
+      const updateStmt = db.prepare("UPDATE files SET content_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+      const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+      const insertFtsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
+      db.transaction(() => {
+        updateStmt.run(hash, file.id);
+        deleteFtsStmt.run(file.id);
+        insertFtsStmt.run(file.id, file.title, content);
+      })();
     }
   } catch {
     // DB not initialized or file not tracked

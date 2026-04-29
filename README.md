@@ -29,7 +29,7 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 - **Live Sync Status**: An ambient status bar streams git stages (`staging local`, `pulling remote`, `pushing`) in real time over WebSockets so you always know what the engine is doing.
 - **Git Wizard Integration**: A seamless Git authentication flow supporting SSH, HTTPS (PAT), and CLI auth paths.
 - **Native MCP Integration**: Plug-and-play support for all modern AI coding tools. Every file-returning tool reports an `est_tokens` budget so agents can plan context-window usage before pulling content.
-- **Token Estimation**: Per-file and per-folder token counts (heuristic: bytes/4) shown in the file list and content header — see at a glance what a folder will cost before bundling it for an LLM.
+- **Token Estimation**: Per-file and per-folder token counts (adaptive heuristic — bytes/4 for ASCII, bytes/3 for non-ASCII content) shown in the file list and content header — see at a glance what a folder will cost before bundling it for an LLM.
 - **Dual-Brain Architecture**: Segregate project-specific context from your personal Knowledge Base.
 - **Obsidian-Chic Aesthetics**: High-contrast amber/rust identity (#D4903A) optimized for deep focus.
 - **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
@@ -209,7 +209,7 @@ If `packages/core/src/db/migrations/` gained new `.sql` files, they run automati
 - **`better-sqlite3` fails to build during `pnpm install`** — install the C/C++ toolchain (see Prerequisites), then `rm -rf node_modules && pnpm install`.
 - **`Cannot find module '@ctxnest/core'`** when starting the web app — you skipped the build step. Run `pnpm -C packages/core build` (or `pnpm build` from the root) once.
 - **`database is locked`** in dev — usually a leftover dev process holding the WAL handle. Stop all `pnpm dev` processes; if it persists, remove `data/ctxnest.db-shm` and `data/ctxnest.db-wal` and restart. The DB is cached on `globalThis` to survive HMR; first launches after a hard kill are the danger zone.
-- **WebSocket not connecting** — check that port 3001 is free (`lsof -i :3001` / `netstat -ano | findstr 3001`). The server binds to `127.0.0.1` by default. If your browser is on a different host, set `CTXNEST_WS_HOST=0.0.0.0` — but be aware this exposes file paths on your network (see [Operations](#operations)).
+- **WebSocket not connecting** — check that port 3001 is free (`lsof -i :3001` / `netstat -ano | findstr 3001`). The server binds to `127.0.0.1` by default. If your browser is on a different host, set `CTXNEST_WS_HOST=0.0.0.0` AND configure `CTXNEST_WS_ORIGINS` (origin allowlist) and/or `CTXNEST_WS_TOKEN`+`NEXT_PUBLIC_WS_TOKEN` (shared secret) — non-loopback connections are rejected by default to avoid leaking file paths on the LAN. See [Operations](#operations).
 - **Sync fails with "Configured global remote URL is not a valid git remote"** — only `https://`, `http://`, `ssh://`, `git://`, and scp-form (`user@host:path`) URLs are accepted. `file://` and credential helpers are rejected by design.
 - **MCP server returns "Database not initialized"** — ensure `CTXNEST_DATA_DIR` points to the same directory the web UI uses; the MCP server opens its own SQLite handle and reads from `$CTXNEST_DATA_DIR/ctxnest.db`.
 - **Build succeeds but `/` shows a placeholder asking for a tablet** — your viewport is below 768px. CtxNest targets tablet+ on the desktop UI; widen the window or open on a larger screen.
@@ -275,7 +275,7 @@ If CtxNest is running in the Docker container from Quick Start, use `docker exec
 
 ### Tool response shape
 
-Every file-returning tool annotates its response with `size_bytes` and `est_tokens` (heuristic: bytes/4) so agents can budget their context window before pulling content. List-style tools also carry a `total_est_tokens` summary.
+Every file-returning tool annotates its response with `size_bytes` and `est_tokens` so agents can budget their context window before pulling content. The estimator samples each file's head and uses `bytes/4` for ASCII-heavy content (~10% accurate vs BPE) or `bytes/3` for multi-byte (CJK/emoji). List-style tools also carry a `total_est_tokens` summary.
 
 | Tool | Response shape |
 | :--- | :--- |
@@ -299,13 +299,18 @@ You can customize CtxNest behavior using the following environment variables:
 | `WS_PORT` | WebSocket Port (server-side bind) | `3001` |
 | `NEXT_PUBLIC_WS_PORT` | WebSocket Port baked into the client bundle (set at build time) | `3001` |
 | `CTXNEST_WS_HOST` | Host the WebSocket server binds to | `127.0.0.1` (`0.0.0.0` in Docker) |
+| `CTXNEST_WS_ORIGINS` | Comma-separated allowed `Origin` headers for browser WS clients (only enforced when bound non-loopback) | unset (loopback only) |
+| `CTXNEST_WS_TOKEN` | Shared-secret token required as `?token=…` on the WS handshake (only enforced when bound non-loopback) | unset |
+| `NEXT_PUBLIC_WS_TOKEN` | Same token, baked into the client bundle at build time so the browser can supply it | unset |
 
-The WebSocket server defaults to loopback because file paths flowing over it leak the local filesystem layout. Set `CTXNEST_WS_HOST=0.0.0.0` only when you need network access (the Docker compose file does this).
+The WebSocket server defaults to loopback because file paths flowing over it leak the local filesystem layout. When `CTXNEST_WS_HOST` is set to anything non-loopback (e.g. `0.0.0.0` in Docker), the server **rejects every connection by default** until you configure either `CTXNEST_WS_ORIGINS` (Origin allowlist for browsers) and/or `CTXNEST_WS_TOKEN` (shared secret, also requires `NEXT_PUBLIC_WS_TOKEN` build arg). The shipped `docker-compose.yml` wires `CTXNEST_WS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` so the browser on the host machine works out of the box without exposing file paths to the LAN.
 
 ### Operations
 
 - **Health check:** `GET /api/health` → `200 {"status":"ok"}` when SQLite responds, `503` otherwise.
 - **Global git remote:** only `https://`, `http://`, `ssh://`, `git://`, and scp-form (`user@host:path`) URLs are accepted. `file://` and other helpers are rejected.
+- **WebSocket auth:** loopback bind = no auth (trusted local). Non-loopback bind requires `CTXNEST_WS_ORIGINS` and/or `CTXNEST_WS_TOKEN` (see Configuration). Without either, all connections are dropped with a `1008` close code and a startup warning is logged.
+- **Token estimation:** the file list and content header show `~Nk tok` per file plus per-folder totals. The heuristic samples each file's first 4 KB and switches between `bytes/4` (ASCII-heavy: ~10% accurate) and `bytes/3` (multi-byte: CJK/emoji, more conservative). MCP tool responses include the same `est_tokens` field plus a `total_est_tokens` for list-style tools so agents can budget their context window before pulling content.
 - **Minimum viewport:** the UI targets ≥768px. Below that, a placeholder is shown.
 
 ---

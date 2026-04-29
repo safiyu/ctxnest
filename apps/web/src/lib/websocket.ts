@@ -2,11 +2,8 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { createFileWatcher, type WatcherEvent } from "@ctxnest/core";
 import type { SyncEvent } from "./sync-events";
 
-// Pin WS state on globalThis so Next.js module duplication (dev bundling
-// per-route, plus instrumentation hook running in its own module instance)
-// doesn't end up with one instance holding the live sockets and another
-// trying to broadcast into an empty Set. Same pattern as the SQLite
-// singleton in @ctxnest/core.
+// globalThis-cached so Next.js module duplication doesn't split the
+// open-sockets Set across instances (broadcast would silently no-op).
 declare global {
   // eslint-disable-next-line no-var
   var __ctxnestWss: WebSocketServer | null | undefined;
@@ -17,9 +14,32 @@ declare global {
 let wss: WebSocketServer | null = globalThis.__ctxnestWss ?? null;
 const clients: Set<WebSocket> = (globalThis.__ctxnestWsClients ??= new Set());
 
+function isLoopbackHost(host: string): boolean {
+  return host === "127.0.0.1" || host === "::1" || host === "localhost";
+}
+
 export function startWebSocketServer(port: number, watchPaths: string[]) {
   if (wss) return wss;
   const host = process.env.CTXNEST_WS_HOST || "127.0.0.1";
+  const loopback = isLoopbackHost(host);
+
+  // Non-loopback WS leaks absolute paths + project metadata. Require
+  // origin allowlist and/or shared-secret token in that case.
+  const allowedOrigins = (process.env.CTXNEST_WS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const requiredToken = (process.env.CTXNEST_WS_TOKEN || "").trim();
+
+  if (!loopback && allowedOrigins.length === 0 && !requiredToken) {
+    console.warn(
+      `[CtxNest] WS bound to ${host} (non-loopback) WITHOUT auth. ` +
+        "All connections will be rejected. Set CTXNEST_WS_ORIGINS " +
+        "(comma-separated allowed Origin headers) and/or CTXNEST_WS_TOKEN " +
+        "(shared secret query param) to enable network access."
+    );
+  }
+
   wss = new WebSocketServer({ port, host });
   globalThis.__ctxnestWss = wss;
 
@@ -31,7 +51,31 @@ export function startWebSocketServer(port: number, watchPaths: string[]) {
     }
   });
 
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, req) => {
+    if (!loopback) {
+      if (allowedOrigins.length === 0 && !requiredToken) {
+        ws.close(1008, "WS auth not configured");
+        return;
+      }
+      if (allowedOrigins.length > 0) {
+        const origin = req.headers.origin;
+        if (!origin || !allowedOrigins.includes(origin)) {
+          ws.close(1008, "Origin not allowed");
+          return;
+        }
+      }
+      if (requiredToken) {
+        let supplied: string | null = null;
+        try {
+          const u = new URL(req.url || "/", "http://_");
+          supplied = u.searchParams.get("token");
+        } catch {}
+        if (supplied !== requiredToken) {
+          ws.close(1008, "Invalid token");
+          return;
+        }
+      }
+    }
     clients.add(ws);
     ws.on("close", () => clients.delete(ws));
   });

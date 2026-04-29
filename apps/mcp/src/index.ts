@@ -21,46 +21,59 @@ import {
   syncBackup,
 } from "@ctxnest/core";
 import { join } from "node:path";
-import { statSync } from "node:fs";
+import { statSync, openSync, readSync, closeSync } from "node:fs";
 
-// Initialize database from environment variables or defaults
 const dataDir = process.env.CTXNEST_DATA_DIR || join(process.cwd(), "data");
 const dbPath = process.env.CTXNEST_DB_PATH || join(dataDir, "ctxnest.db");
 
-/**
- * Annotate a file record with size_bytes + est_tokens so the agent can
- * budget its context window before pulling the full content.
- *
- * - If `content` is present, count from it directly (chars/4 heuristic;
- *   ~10% off for English/code, free, no tokenizer dependency).
- * - Otherwise, stat the file path and use bytes/4.
- *
- * Best-effort: missing files report nulls instead of throwing.
- */
+// Sample head; pick bytes/4 for ASCII or bytes/3 for multi-byte (CJK/emoji).
+function estimateTokensFromBuffer(buf: Buffer): number {
+  if (buf.length === 0) return 1;
+  const mostlyAscii = buf.toString("utf-8").length > buf.length * 0.7;
+  return Math.max(1, Math.ceil(buf.length / (mostlyAscii ? 4 : 3)));
+}
+
+function estimateTokensFromFile(filePath: string, sizeBytes: number): number {
+  if (sizeBytes <= 0) return 1;
+  const sampleSize = Math.min(4096, sizeBytes);
+  if (sampleSize < 256) return Math.max(1, Math.ceil(sizeBytes / 4));
+  let mostlyAscii = true;
+  let fd: number | null = null;
+  try {
+    fd = openSync(filePath, "r");
+    const buf = Buffer.alloc(sampleSize);
+    readSync(fd, buf, 0, sampleSize, 0);
+    mostlyAscii = buf.toString("utf-8").length > sampleSize * 0.7;
+  } catch {} finally {
+    if (fd !== null) try { closeSync(fd); } catch {}
+  }
+  return Math.max(1, Math.ceil(sizeBytes / (mostlyAscii ? 4 : 3)));
+}
+
+// Adds size_bytes + est_tokens so agents can budget context before pulling content.
 function annotateTokens<T extends { path?: string; content?: string }>(rec: T): T & { size_bytes: number | null; est_tokens: number | null } {
   let size_bytes: number | null = null;
+  let est_tokens: number | null = null;
   if (typeof rec.content === "string") {
-    // utf-8 byte length is a closer proxy than char length for non-ASCII
-    size_bytes = Buffer.byteLength(rec.content, "utf8");
+    const buf = Buffer.from(rec.content, "utf-8");
+    size_bytes = buf.length;
+    est_tokens = estimateTokensFromBuffer(buf);
   } else if (rec.path) {
     try {
       size_bytes = statSync(rec.path).size;
+      est_tokens = estimateTokensFromFile(rec.path, size_bytes);
     } catch {}
   }
-  const est_tokens = size_bytes !== null ? Math.max(1, Math.ceil(size_bytes / 4)) : null;
   return { ...rec, size_bytes, est_tokens };
 }
 
-// Create database instance
 createDatabase(dbPath);
 
-// Create MCP server
 const server = new McpServer({
   name: "ctxnest",
   version: "0.1.0",
 });
 
-// Register tool: create_file
 server.tool(
   "create_file",
   "Create a new markdown file in the knowledge base or project",
@@ -88,7 +101,6 @@ server.tool(
   }
 );
 
-// Register tool: read_file
 server.tool(
   "read_file",
   "Read a file by its ID. Response includes est_tokens (heuristic) so the agent can budget context window usage before pulling the full content.",
@@ -103,7 +115,6 @@ server.tool(
   }
 );
 
-// Register tool: update_file
 server.tool(
   "update_file",
   "Update the content of an existing file",
@@ -119,7 +130,6 @@ server.tool(
   }
 );
 
-// Register tool: delete_file
 server.tool(
   "delete_file",
   "Delete a file by its ID",
@@ -127,14 +137,13 @@ server.tool(
     id: z.number().describe("File ID"),
   },
   async ({ id }) => {
-    deleteFile(id);
+    deleteFile(id, dataDir);
     return {
       content: [{ type: "text", text: JSON.stringify({ success: true }, null, 2) }],
     };
   }
 );
 
-// Register tool: list_files
 server.tool(
   "list_files",
   "List files with optional filters",
@@ -164,7 +173,6 @@ server.tool(
   }
 );
 
-// Register tool: search
 server.tool(
   "search",
   "Search files using full-text search",
@@ -189,7 +197,6 @@ server.tool(
   }
 );
 
-// Register tool: add_tags
 server.tool(
   "add_tags",
   "Add tags to a file",
@@ -205,7 +212,6 @@ server.tool(
   }
 );
 
-// Register tool: remove_tags
 server.tool(
   "remove_tags",
   "Remove tags from a file",
@@ -221,7 +227,6 @@ server.tool(
   }
 );
 
-// Register tool: set_favorite
 server.tool(
   "set_favorite",
   "Set or unset a file as favorite",
@@ -237,7 +242,6 @@ server.tool(
   }
 );
 
-// Register tool: list_tags
 server.tool(
   "list_tags",
   "List all tags",
@@ -250,7 +254,6 @@ server.tool(
   }
 );
 
-// Register tool: list_projects
 server.tool(
   "list_projects",
   "List all projects",
@@ -263,7 +266,6 @@ server.tool(
   }
 );
 
-// Register tool: register_project
 server.tool(
   "register_project",
   "Register a new project and discover its markdown files. If the user wants to register the project they are currently working in, resolve the current working directory to an absolute path and pass it as the path parameter.",
@@ -302,7 +304,6 @@ server.tool(
   }
 );
 
-// Register tool: sync_backup
 server.tool(
   "sync_backup",
   "Sync backup copies of project reference files",
@@ -330,7 +331,6 @@ server.tool(
   }
 );
 
-// Register resource: ctxnest://projects
 server.resource(
   "All Projects",
   "ctxnest://projects",
@@ -352,11 +352,10 @@ server.resource(
   }
 );
 
-// Register resource template: ctxnest://files/{id}
 server.resource(
   "File Content",
   new ResourceTemplate("ctxnest://files/{id}", {
-    list: undefined, // Template resources don't need list implementation
+    list: undefined,
   }),
   {
     description: "Content of a specific file by ID",
@@ -379,7 +378,6 @@ server.resource(
   }
 );
 
-// Main function
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);

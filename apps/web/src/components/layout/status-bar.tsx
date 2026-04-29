@@ -37,10 +37,7 @@ export function StatusBar({
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
 
-  // The remote URL is fetched async by the parent. Reconcile the initial
-  // status when it arrives (or is cleared) so we don't get stuck on the
-  // initial render's value. Only flip between idle/no-remote so we don't
-  // clobber an in-flight syncing/ok/error status.
+  // Reconcile when globalRemoteUrl arrives async; preserve in-flight statuses.
   useEffect(() => {
     setStatus((prev) => {
       if (prev === "syncing" || prev === "ok" || prev === "error") return prev;
@@ -48,24 +45,37 @@ export function StatusBar({
     });
   }, [globalRemoteUrl]);
 
-  // Force re-render every 30s so the "2m ago" label stays fresh.
+  // Tick every 30s so "synced 2m ago" stays fresh.
   const [, setTick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setTick((n) => n + 1), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  // Subscribe to the global WS channel. We share the channel with file-watch
-  // events but the status bar only cares about sync events.
   const wsRef = useRef<WebSocket | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsPort = process.env.NEXT_PUBLIC_WS_PORT || "3001";
-    const url = `${protocol}//${window.location.hostname}:${wsPort}`;
+    const wsToken = process.env.NEXT_PUBLIC_WS_TOKEN || "";
+    const tokenSuffix = wsToken ? `?token=${encodeURIComponent(wsToken)}` : "";
+    const url = `${protocol}//${window.location.hostname}:${wsPort}${tokenSuffix}`;
     let cancelled = false;
-    let reconnect: ReturnType<typeof setTimeout>;
+    let reconnect: ReturnType<typeof setTimeout> | null = null;
+
+    const detach = (socket: WebSocket | null) => {
+      if (!socket) return;
+      socket.onmessage = null;
+      socket.onclose = null;
+      socket.onerror = null;
+    };
+
     const connect = () => {
+      if (cancelled) return;
+      if (wsRef.current) {
+        detach(wsRef.current);
+        try { wsRef.current.close(); } catch {}
+      }
       const ws = new WebSocket(url);
       wsRef.current = ws;
       ws.onmessage = (msg) => {
@@ -76,14 +86,17 @@ export function StatusBar({
         } catch {}
       };
       ws.onclose = () => {
-        if (!cancelled) reconnect = setTimeout(connect, 3000);
+        if (cancelled) return;
+        reconnect = setTimeout(connect, 3000);
       };
     };
     connect();
     return () => {
       cancelled = true;
-      clearTimeout(reconnect);
-      wsRef.current?.close();
+      if (reconnect) clearTimeout(reconnect);
+      detach(wsRef.current);
+      try { wsRef.current?.close(); } catch {}
+      wsRef.current = null;
     };
   }, []);
 

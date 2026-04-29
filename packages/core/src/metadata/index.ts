@@ -139,34 +139,28 @@ export function registerProject(
 export function unregisterProject(projectId: number, dataDir?: string): void {
   const db = getDatabase();
 
-  // Capture project slug before we drop the row so we can clean up its
-  // backup subtree (otherwise re-registering the project later would
-  // re-ingest stale orphan files from data/backups/<slug>/).
+  // Capture slug before deleting the row — needed for backup subtree cleanup below.
   const project = db.prepare("SELECT slug FROM projects WHERE id = ?").get(projectId) as
     | { slug: string }
     | undefined;
 
   db.transaction(() => {
-    // 1. Get all file IDs associated with the project
     const files = db.prepare("SELECT id FROM files WHERE project_id = ?").all(projectId) as { id: number }[];
     const fileIds = files.map(f => f.id);
 
     if (fileIds.length > 0) {
-      // 2. Delete from FTS index
       const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
       for (const id of fileIds) {
         deleteFtsStmt.run(id);
       }
-
-      // 3. Delete from files (file_tags and favorites will cascade delete)
+      // CASCADE on the files DELETE handles file_tags + favorites.
       db.prepare("DELETE FROM files WHERE project_id = ?").run(projectId);
     }
 
-    // 4. Delete the project
     db.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
   })();
 
-  // 5. Outside the txn: remove the project's backup subtree on disk so the
+  // Outside the txn: remove the backup subtree so re-register doesn't resurrect ghosts.
   // next syncBackup doesn't resurrect ghost files. Best-effort; log on fail.
   if (dataDir && project?.slug) {
     const backupSubtree = join(dataDir, "backups", project.slug);
@@ -227,7 +221,6 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
           continue;
         }
         try {
-          // Check if file already exists in DB
           const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(fullPath) as { id: number } | undefined;
           if (existing) continue;
 
@@ -235,18 +228,25 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
           const contentHash = computeHash(content);
           const title = basename(entry, ".md");
 
+          // OR IGNORE so we no-op when the watcher inserted first.
           const insertStmt = db.prepare(`
-            INSERT INTO files (path, title, project_id, storage_type, content_hash)
+            INSERT OR IGNORE INTO files (path, title, project_id, storage_type, content_hash)
             VALUES (?, ?, ?, 'reference', ?)
           `);
-          const result = insertStmt.run(fullPath, title, projectId, contentHash);
-          const fileId = Number(result.lastInsertRowid);
-
           const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
-          ftsStmt.run(fileId, title, content);
 
-          const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
-          discoveredFiles.push(fileRecord);
+          const fileId = db.transaction(() => {
+            const result = insertStmt.run(fullPath, title, projectId, contentHash);
+            if (result.changes === 0) return null;
+            const id = Number(result.lastInsertRowid);
+            ftsStmt.run(id, title, content);
+            return id;
+          })();
+
+          if (fileId !== null) {
+            const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
+            discoveredFiles.push(fileRecord);
+          }
         } catch (e) {
           console.warn(`discoverFiles: failed for ${fullPath}:`, e);
         }
