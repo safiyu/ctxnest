@@ -4,10 +4,6 @@
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
-<p align="center">
-  <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
-</p>
-
 ---
 
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
@@ -18,6 +14,10 @@ CtxNest is a high-performance markdown context manager that bridges the gap betw
 > - `list_files` and `search` now return `tags`, `est_tokens`, and `size_bytes` inline — no more N+1 `read_file` to inspect what you have.
 > - `clip_url` detects auth walls (Confluence, SSO, login pages) and returns `{auth_required, login_url, ...}` instead of a useless clip; accepts a `headers` param for cookie/token retry.
 > See [`CHANGELOG.md`](CHANGELOG.md) for details.
+
+<p align="center">
+  <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
+</p>
 
 ## Why CtxNest?
 
