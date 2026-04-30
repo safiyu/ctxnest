@@ -1,8 +1,8 @@
-<p align="center">
+<div align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180">
-</p>
-<h1 align="center">CtxNest v3.0</h1>
-<p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
+  <h1 style="margin-top: 10px;">CtxNest v3.0</h1>
+  <p><b>The Centralized Context Engine for Agentic Workflows</b></p>
+</div>
 
 ---
 
