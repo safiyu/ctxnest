@@ -4,6 +4,10 @@
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
+<p align="center">
+  <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
+</p>
+
 ---
 
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
