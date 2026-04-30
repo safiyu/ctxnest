@@ -7,12 +7,13 @@ const STATUS_FOR_CODE: Record<ClipErrorCode, number> = {
   FETCH_FAILED: 502,
   UNSUPPORTED_CONTENT_TYPE: 422,
   EXTRACTION_FAILED: 422,
+  AUTH_REQUIRED: 401,
 };
 
 export async function POST(req: Request) {
   ensureDbInitialized();
 
-  let body: { url?: unknown; title?: unknown };
+  let body: { url?: unknown; title?: unknown; headers?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -21,20 +22,33 @@ export async function POST(req: Request) {
 
   const url = typeof body.url === "string" ? body.url : "";
   const title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : undefined;
+  const headers = isStringRecord(body.headers) ? body.headers : undefined;
   if (!url) {
     return NextResponse.json({ error: "Missing 'url' field" }, { status: 400 });
   }
 
   try {
-    const file = await clipUrl({ url, title, dataDir: DATA_DIR });
+    const file = await clipUrl({ url, title, dataDir: DATA_DIR, headers });
     return NextResponse.json(file);
   } catch (e) {
     if (e instanceof ClipError) {
-      return NextResponse.json(
-        { error: e.message, code: e.code },
-        { status: STATUS_FOR_CODE[e.code] ?? 500 }
-      );
+      const payload: Record<string, unknown> = { error: e.message, code: e.code };
+      if (e.code === "AUTH_REQUIRED") {
+        payload.auth_required = true;
+        if (e.details.loginUrl) payload.login_url = e.details.loginUrl;
+        if (e.details.signal) payload.signal = e.details.signal;
+        if (e.details.wwwAuthenticate) payload.www_authenticate = e.details.wwwAuthenticate;
+      }
+      return NextResponse.json(payload, { status: STATUS_FOR_CODE[e.code] ?? 500 });
     }
     return NextResponse.json({ error: (e as Error).message ?? "Internal error" }, { status: 500 });
   }
+}
+
+function isStringRecord(v: unknown): v is Record<string, string> {
+  if (!v || typeof v !== "object") return false;
+  for (const val of Object.values(v as Record<string, unknown>)) {
+    if (typeof val !== "string") return false;
+  }
+  return true;
 }

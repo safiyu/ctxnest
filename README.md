@@ -1,76 +1,54 @@
-<div align="center">
-  <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180">
-  <h1 style="margin-top: 10px;">CtxNest v3.0</h1>
-  <p><b>The Centralized Context Engine for Agentic Workflows</b></p>
-</div>
+<h1 align="center">
+  <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
+  CtxNest v3.1
+</h1>
+<p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
 ---
 
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
+> [!NOTE]
+> **What's new in 3.1** — agent-first surface upgrades:
+> - `whats_new` and `project_map` MCP tools — fresh sessions can catch up on changes and survey the knowledge base in a single call.
+> - `list_files` and `search` now return `tags`, `est_tokens`, and `size_bytes` inline — no more N+1 `read_file` to inspect what you have.
+> - `clip_url` detects auth walls (Confluence, SSO, login pages) and returns `{auth_required, login_url, ...}` instead of a useless clip; accepts a `headers` param for cookie/token retry.
+> See [`CHANGELOG.md`](CHANGELOG.md) for details.
+
 ## Why CtxNest?
 
-Standard Git is built for code, but CtxNest is built for **Context**. While your context files live inside your project repo, CtxNest manages them with a dedicated synchronization layer that offers three critical advantages:
-
-1.  **The Global Vault**: Transition from a fragmented multi-repo setup to a powerful **Single Vault Architecture**. Sync all your projects to a single, unified Git repository, securely organized by project subdirectories.
-2.  **True Two-Way Collaboration**: It's not just a backup tool. CtxNest features a sophisticated two-way sync engine that natively pulls and merges changes made by collaborators, gracefully injecting remote additions directly into your local database and workspace using Git's native merge logic.
-3.  **Safety & Redundancy**: CtxNest creates independent, versioned snapshots of your context. If you accidentally wipe a folder or face a catastrophic merge conflict in your project, your "Context Git" provides a reliable safety net to restore your AI's memory.
-4.  **Pay-As-You-Go Context**: Standard repo contexts (like `CLAUDE.md` or `.cursorrules`) are typically loaded upfront, consuming thousands of tokens on every single turn. CtxNest enables a **"pay-as-you-go"** model via MCP where agents only fetch specific relevant files on-demand. This dramatically reduces token costs and keeps your context window focused. Maintain hybrid approach (MCP + minimal default repo contexts) of both strategies to optimize cost and context availability.
-5.  **Universal Project Awareness**: Registering a project with CtxNest makes it part of a global intelligence network. Your AI assistant becomes aware of *every* project shared with the vault, allowing it to pull standards, patterns, and documentation from unrelated projects to help solve current tasks.
+Git is built for code; CtxNest is built for **context**. It gives you a **single global vault** for context across every project, **two-way sync** that pulls and merges collaborator changes via native git, **versioned snapshots** as a safety net for accidental wipes, and a **pay-as-you-go MCP surface** so agents fetch only what they need instead of preloading thousands of tokens per turn. Registering a project also makes it part of a global pool — agents can pull standards from any project to help with the current one.
 
 > [!TIP]
-> **Total Control**: Deleting a project file in CtxNest only "un-indexes" it from the AI's memory. Your physical source code is never touched, ensuring zero risk to your project repo.
+> Deleting a project file in CtxNest only un-indexes it from the AI's memory. Your physical source code is never touched.
 
 ---
 
 ## Key Features
 
-- **"Sync All" Architecture**: One-click global synchronization across all your registered projects.
-- **Live Sync Status**: An ambient status bar streams git stages (`staging local`, `pulling remote`, `pushing`) in real time over WebSockets so you always know what the engine is doing.
-- **Git Wizard Integration**: A seamless Git authentication flow supporting SSH, HTTPS (PAT), and CLI auth paths.
-- **Native MCP Integration**: Plug-and-play support for all modern AI coding tools. Every file-returning tool reports an `est_tokens` budget so agents can plan context-window usage before pulling content.
-- **Token Estimation**: Per-file and per-folder token counts (adaptive heuristic — bytes/4 for ASCII, bytes/3 for non-ASCII content) shown in the file list and content header — see at a glance what a folder will cost before bundling it for an LLM.
-- **Dual-Brain Architecture**: Segregate project-specific context from your personal Knowledge Base.
-- **Obsidian-Chic Aesthetics**: High-contrast amber/rust identity (#D4903A) optimized for deep focus.
-- **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
-- **Web Clipping**: Capture any web page as clean Markdown into your Knowledge Base — Readability-extracted, frontmatter-tagged, and deduped by URL. Available via UI and MCP.
-- **Git Intelligence**: Built-in Git versioning for every single edit. Use the `get_history` and `get_diff` MCP tools to let agents inspect how documentation evolved and see exactly what changed.
-- **ZIP Export**: Download entire projects or specific folders as portable ZIP archives directly from the browser.
-- **Token Estimation**: Per-file and per-folder token counts shown throughout the UI and reported by every MCP tool for precise context budgeting.
+- **Global vault & two-way sync** — single git repo for context across all projects; native pull/merge of remote changes.
+- **MCP server** — every file-returning tool reports `est_tokens` and `size_bytes`; `list_files` / `search` / `whats_new` / `project_map` also inline `tags`, eliminating N+1 round-trips.
+- **Local-first RAG** — SQLite FTS5 (deterministic, no hallucinated relevance), git-backed versioning, no third-party vector clouds.
+- **Web clipping** — Readability-extracted Markdown into the knowledge base, deduped by URL. Detects auth walls (`AUTH_REQUIRED`) and accepts a `headers` param for cookie/token retry.
+- **Git intelligence** — every edit versioned; `get_history` + `get_diff` let agents explain *why* a decision was made.
+- **Live UX** — animated status bar streams git stages over WebSockets, ambient sync feedback, ZIP export of any folder/project.
+- **Dual-brain architecture** — project context separated from your personal knowledge base.
 
 ## AI Agent Capabilities
 
-CtxNest transforms your AI assistant from a simple chatbot into a high-context collaborator:
-
-1.  **Dynamic Context**: Query precise documentation without token bloat. 
-    *   *Prompt: "Find auth system notes in CtxNest."*
-2.  **Two-Way Sync**: Agents write research and plans directly to your version-controlled vault.
-    *   *Prompt: "Save this technical migration plan to CtxNest."*
-3.  **Time-Travel**: Analyze documentation evolution via built-in Git history. The `get_history` and `get_diff` MCP tools let agents inspect how a file evolved and see the actual changes between any two commits — useful for explaining *why* a decision was made, not just what the current state is.
-    *   *Prompt: "Show me the history of the auth-architecture note and diff today's version against last week's — I want to understand what changed and why."*
-4.  **Auto-Indexing**: Agents keep their knowledge map updated automatically as you add files.
-    *   *Prompt: "Discover and index any new markdown files in the docs/ folder."*
-5.  **Global Patterns**: Apply your personal "Global Vault" standards to any local project.
-    *   *Prompt: "Use the coding standards from my personal Knowledge Base for this fix."*
-6.  **Live Awareness**: Agents instantly "see" your local documentation edits via the file watcher.
-    *   *Prompt: "I just updated the API schema on disk, please re-scan the context."*
-7.  **Web Clipping**: Agents pull in unfamiliar library docs mid-task and reference them throughout the conversation. Clips land in `knowledge/urlclips/` as clean Markdown; re-clipping the same URL refreshes in place.
-    *   *Prompt: "Clip the Terraform `aws_instance` resource docs into CtxNest so we can reference them while writing this module."*
-8.  **Reusable Templates**: Save plan / spec / postmortem templates as plain Markdown files (a `knowledge/templates/` folder is the convention) and have agents pull them via `list_files` + `read_file` whenever you start a new feature. No special tool needed — the existing CRUD covers it.
-    *   *Prompt: "List the templates in CtxNest and pull the `api-route` one so we follow our conventions for this new endpoint."*
-9.  **Agent-Assisted Tagging**: Pass `untagged: true` to `list_files` to surface every file that's never been tagged, then have the agent read each one and call `add_tags` based on the content. Keeps the knowledge base organized without inventing a server-side LLM dependency — the agent in the loop *is* the tagger.
-    *   *Prompt: "Find all my untagged files in CtxNest, read each one, and apply 1–3 relevant tags so they're easier to search later."*
-10. **Related-Context Lookup**: The `find_related` MCP tool returns files ranked by shared-tag overlap with a given file. Surfaces logically connected context that might not match the same search keywords — turns your tag system into a lightweight knowledge graph. (A visual graph view is a planned follow-up.)
-    *   *Prompt: "I'm reading the auth-architecture note. Find related files in CtxNest so I have full context before suggesting changes."*
-
-## A Local-First RAG Alternative
-
-CtxNest is a high-performance alternative to traditional cloud-based RAG (Retrieval-Augmented Generation) systems, specifically optimized for developer workflows:
-
--   **Deterministic Retrieval**: Unlike fuzzy vector embeddings that can "hallucinate" relevance, CtxNest uses **SQLite FTS5**. This ensures 100% precision for technical terms, class names, and code snippets.
--   **Context-Rich Versioning**: Most RAG systems only know what your docs look like *now*. CtxNest is **Git-backed**, allowing agents to retrieve and analyze the history of your technical decisions.
--   **Zero Token Waste**: Agents use the CtxNest API to "research" and "browse" your documentation first. This ensures they only pull the most relevant files into their context window, significantly reducing LLM costs.
--   **Privacy by Default**: Your "RAG data" never leaves your local machine or your private Git vault. No third-party vector clouds or external indexing services are required.
+| Capability | Tool(s) | Example prompt |
+| :--- | :--- | :--- |
+| Dynamic context retrieval | `search`, `bundle_search` | "Find auth system notes in CtxNest." |
+| Two-way write-back | `create_file`, `update_file` | "Save this migration plan to CtxNest." |
+| Time-travel diffs | `get_history`, `get_diff` | "Diff the auth note vs. last week's version." |
+| Auto-indexing | `discover_files` | "Discover any new markdown in `docs/`." |
+| Live disk awareness | file watcher | "I just edited the API schema, re-scan." |
+| Web clipping (auth-aware) | `clip_url` | "Clip this Confluence page; ask me for a Cookie header if it's walled." |
+| Reusable templates | `list_files` + `read_file` | "Pull the `api-route` template." |
+| Agent-assisted tagging | `list_files{untagged:true}` + `add_tags` | "Find untagged files and tag them." |
+| Related-context lookup | `find_related` | "Find files related to the auth note." |
+| Session catch-up | `whats_new` | "What changed in CtxNest in the last 24h?" |
+| Project map / outline | `project_map` | "Give me a map of CtxNest." |
 
 ## Quick Start (Docker)
 
@@ -297,10 +275,13 @@ Every file-returning tool annotates its response with `size_bytes` and `est_toke
 | Tool | Response shape |
 | :--- | :--- |
 | `read_file`, `create_file`, `update_file` | `{ ...file, size_bytes, est_tokens }` |
-| `list_files` | `{ files: [...annotated], total_est_tokens }` |
-| `search` | `{ matches: [...annotated], total_est_tokens }` |
+| `list_files` | `{ files: [{ ...file, tags, size_bytes, est_tokens }], total_est_tokens }` |
+| `search` | `{ matches: [{ ...file, tags, size_bytes, est_tokens }], total_est_tokens }` |
+| `whats_new` | `{ since, until, count, total_est_tokens, files: [{ ...file, change: "created"\|"modified", tags, size_bytes, est_tokens }] }` |
+| `project_map` | `{ stats: { files, folders, roots, truncated }, est_tokens, outline }` (outline is an indented text string with `[id] Title  #tag1 #tag2` per leaf) |
 | `register_project` | `{ project, discovered_files_count, total_est_tokens, discovered_files: [...annotated] }` |
 | `bundle_search` | `{ bundle, meta: { query, format, total_est_tokens, included: [{id, path, est_tokens}], skipped: [{..., reason}] } }` |
+| `clip_url` (auth-walled) | `isError: true` with `{ code: "AUTH_REQUIRED", auth_required: true, login_url, signal, www_authenticate?, hint }` — retry with `headers: {"Cookie": "..."}` or `{"Authorization": "Bearer ..."}` |
 
 > [!NOTE]
 > `list_files` and `search` previously returned bare arrays. Clients that pre-parsed the array directly need to read `.files` / `.matches` instead.

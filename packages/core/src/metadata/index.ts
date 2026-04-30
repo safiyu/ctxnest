@@ -292,6 +292,34 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
 }
 
 /**
+ * Bulk-fetch tag names for many files in a single query.
+ * Returns a Map keyed by file_id; missing keys = file has no tags.
+ * Used by list_files / search / whats_new / project_map to inline tags
+ * without an N+1 round-trip per file.
+ */
+export function getTagsForFiles(fileIds: number[]): Map<number, string[]> {
+  const out = new Map<number, string[]>();
+  if (fileIds.length === 0) return out;
+  const db = getDatabase();
+  const placeholders = fileIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT ft.file_id AS file_id, t.name AS name
+       FROM file_tags ft
+       JOIN tags t ON t.id = ft.tag_id
+       WHERE ft.file_id IN (${placeholders})
+       ORDER BY t.name ASC`
+    )
+    .all(...fileIds) as { file_id: number; name: string }[];
+  for (const r of rows) {
+    const arr = out.get(r.file_id);
+    if (arr) arr.push(r.name);
+    else out.set(r.file_id, [r.name]);
+  }
+  return out;
+}
+
+/**
  * List all tags
  */
 export function listTags(): TagRecord[] {

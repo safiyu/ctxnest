@@ -1,5 +1,22 @@
 # Changelog
- 
+
+## 3.1.0 (2026-04-30)
+
+### Agent-First MCP Surface
+- **`whats_new` tool**: List files created or modified since a checkpoint (ISO timestamp or relative duration like `"1h"`, `"7d"`, `"2w"`). Each entry is annotated with `change: "created" | "modified"`, inline tags, and `est_tokens`. Lets a fresh agent session catch up on changes without re-reading the entire knowledge base.
+- **`project_map` tool**: Single call returns a compact, indented outline of the entire knowledge base — folders, file titles, tags, file IDs — typically 5× denser than the equivalent `list_files` JSON. Reports `est_tokens` so the caller can budget context before passing it along. Designed to replace the "list_files then mentally group by folder" pattern.
+- **Inline tags + token budget on `list_files` and `search`**: Both tools now return `tags: string[]`, `est_tokens`, and `size_bytes` per record. Eliminates the N+1 round-trip of calling `read_file` just to inspect tags or size before deciding which file is worth pulling.
+
+### Web Clipping — Auth-Wall Detection
+- **`AUTH_REQUIRED` error code on `clip_url`**: Previously, clipping a Confluence/Notion/SSO-walled page silently produced a useless clip of the login page. The clipper now detects three auth signals and returns `{auth_required: true, login_url, signal, www_authenticate?}` instead:
+  - HTTP `401` / `403` (with `WWW-Authenticate` surfaced when present)
+  - Redirect to a login URL (`/login`, `/signin`, `/sso/`, `/oauth/`, `?redirect_to=…`, etc.)
+  - 200-OK login page body (sniffs `<input type=password>`, Atlassian `os_username`, Spring `j_username`, login-action forms)
+- **Headers passthrough**: `clip_url` accepts an optional `headers: Record<string,string>` so agents can retry behind auth walls with `Cookie` or `Authorization` headers. Same param exposed on the web API (`POST /api/clip`).
+
+### Core
+- **`getTagsForFiles(ids[])`**: New shared helper for bulk tag fetch in a single SQL query. Used internally by `list_files`, `search`, `whats_new`, and `project_map` to avoid N+1 patterns. Exported from `@ctxnest/core`.
+
 ## 3.0.0 (2026-04-30)
 
 ### Web Clipping & Semantic Intelligence

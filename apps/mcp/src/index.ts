@@ -27,6 +27,9 @@ import {
   getDiff,
   getDatabase,
   findRelated,
+  whatsNew,
+  projectMap,
+  getTagsForFiles,
 } from "@ctxnest/core";
 import { join } from "node:path";
 import { statSync, openSync, readSync, closeSync } from "node:fs";
@@ -66,6 +69,13 @@ function annotateTokens<T extends { path?: string; content?: string }>(rec: T): 
     } catch {}
   }
   return { ...rec, size_bytes, est_tokens };
+}
+
+// Bulk-attach tag names so list-style responses don't force an N+1 read_file.
+function attachTags<T extends { id: number }>(records: T[]): (T & { tags: string[] })[] {
+  if (records.length === 0) return [];
+  const tagMap = getTagsForFiles(records.map((r) => r.id));
+  return records.map((r) => ({ ...r, tags: tagMap.get(r.id) ?? [] }));
 }
 
 createDatabase(dbPath);
@@ -147,7 +157,7 @@ server.tool(
 
 server.tool(
   "list_files",
-  "List files with optional filters",
+  "List files with optional filters. Each result is annotated inline with `tags` (string[]), `est_tokens`, and `size_bytes` so you can decide what to read without an N+1 round-trip per file.",
   {
     project_id: z.number().optional().describe("Filter by project ID"),
     tag: z.string().optional().describe("Filter by tag name"),
@@ -168,7 +178,7 @@ server.tool(
     if (offset !== undefined) filters.offset = offset;
 
     const result = listFiles({ dataDir, filters });
-    const annotated = result.map(annotateTokens);
+    const annotated = attachTags(result.map(annotateTokens));
     const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
     return {
       content: [{ type: "text", text: JSON.stringify({ files: annotated, total_est_tokens }, null, 2) }],
@@ -178,7 +188,7 @@ server.tool(
 
 server.tool(
   "search",
-  "Search files using full-text search",
+  "Search files using full-text search. Each match is annotated inline with `tags` (string[]), `est_tokens`, and `size_bytes` so you can pick which results to read without a follow-up call per file.",
   {
     query: z.string().describe("Search query"),
     project_id: z.number().optional().describe("Filter by project ID"),
@@ -192,7 +202,7 @@ server.tool(
     if (favorite !== undefined) filters.favorite = favorite;
 
     const result = search(filters);
-    const annotated = result.map(annotateTokens);
+    const annotated = attachTags(result.map(annotateTokens));
     const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
     return {
       content: [{ type: "text", text: JSON.stringify({ matches: annotated, total_est_tokens }, null, 2) }],
@@ -362,14 +372,18 @@ server.tool(
 
 server.tool(
   "clip_url",
-  "Clip a web page into the knowledge base as cleaned Markdown. Fetches the URL, extracts the main article content (Readability), converts to Markdown, and stores it under knowledge/urlclips/. Re-clipping the same URL updates the existing file in place.",
+  "Clip a web page into the knowledge base as cleaned Markdown. Fetches the URL, extracts the main article content (Readability), converts to Markdown, and stores it under knowledge/urlclips/. Re-clipping the same URL updates the existing file in place. If the page requires authentication (HTTP 401/403, redirect-to-login, or login-form body), returns code AUTH_REQUIRED with auth_required:true and a login_url; pass cookies/tokens via the optional headers param to retry.",
   {
     url: z.string().url().describe("The URL to clip"),
     title: z.string().optional().describe("Optional title override (defaults to the page's <title>)"),
+    headers: z
+      .record(z.string())
+      .optional()
+      .describe("Optional HTTP headers to forward with the fetch (e.g. {\"Cookie\": \"session=...\"} or {\"Authorization\": \"Bearer ...\"}). Use to clip pages behind auth walls after AUTH_REQUIRED."),
   },
-  async ({ url, title }) => {
+  async ({ url, title, headers }) => {
     try {
-      const file = await clipUrl({ url, title, dataDir });
+      const file = await clipUrl({ url, title, dataDir, headers });
       return {
         content: [
           {
@@ -390,9 +404,17 @@ server.tool(
     } catch (e) {
       const code = e instanceof ClipError ? e.code : "INTERNAL_ERROR";
       const message = (e as Error).message ?? String(e);
+      const payload: Record<string, unknown> = { code, message };
+      if (e instanceof ClipError && code === "AUTH_REQUIRED") {
+        payload.auth_required = true;
+        if (e.details.loginUrl) payload.login_url = e.details.loginUrl;
+        if (e.details.signal) payload.signal = e.details.signal;
+        if (e.details.wwwAuthenticate) payload.www_authenticate = e.details.wwwAuthenticate;
+        payload.hint = "Page requires authentication. Retry with the optional `headers` param (e.g. {\"Cookie\": \"...\"} or {\"Authorization\": \"Bearer ...\"}).";
+      }
       return {
         isError: true,
-        content: [{ type: "text", text: JSON.stringify({ code, message }) }],
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
       };
     }
   }
@@ -467,6 +489,86 @@ server.tool(
         {
           type: "text",
           text: JSON.stringify({ file_id, related: annotated }, null, 2),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "whats_new",
+  "List files created or modified since a checkpoint. Use at the start of a fresh session to catch up on changes without re-reading the whole knowledge base. `since` accepts an ISO 8601 timestamp (\"2026-04-30T12:00:00Z\") or a relative duration (\"30m\", \"2h\", \"1d\", \"7d\", \"1w\"). Each file is annotated with `change` (\"created\" or \"modified\"), tags, and est_tokens so you can budget context before fetching content. Note: hard-deleted files are not tracked, so this only surfaces creates and updates.",
+  {
+    since: z.string().describe("ISO 8601 timestamp or relative duration (e.g. \"1h\", \"7d\", \"2w\")."),
+    project_id: z.number().nullable().optional().describe("Filter to a single project. Pass null for knowledge-base-only files. Omit for all."),
+    include_tags: z.boolean().optional().describe("Attach tags[] to each file. Default true."),
+    limit: z.number().optional().describe("Max files returned. Default 200."),
+  },
+  async ({ since, project_id, include_tags, limit }) => {
+    try {
+      const opts: any = { since };
+      if (project_id !== undefined) opts.project_id = project_id;
+      if (include_tags !== undefined) opts.include_tags = include_tags;
+      if (limit !== undefined) opts.limit = limit;
+      const result = whatsNew(opts);
+      const annotated = result.files.map(annotateTokens);
+      const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                since: result.since,
+                until: result.until,
+                count: result.count,
+                total_est_tokens,
+                files: annotated,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (e) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: JSON.stringify({ error: (e as Error).message }, null, 2) }],
+      };
+    }
+  }
+);
+
+server.tool(
+  "project_map",
+  "Return a compact, indented outline of the entire knowledge base — folders, file titles, tags, and file IDs — in a single call. Use at the start of a session instead of repeatedly calling list_files. The outline is a text string (~5x denser than equivalent list_files JSON) where each file appears as `[id] Title  #tag1 #tag2`. Folders sort first, files second; both alphabetic. Returns est_tokens so you can budget context before reading.",
+  {
+    project_id: z.number().nullable().optional().describe("Restrict to a single project. Pass null for knowledge-base-only files. Omit for everything."),
+    include_tags: z.boolean().optional().describe("Append #tags inline. Default true. Set false to shrink the outline."),
+    show_titles: z.boolean().optional().describe("Show file titles instead of filenames. Default true."),
+    max_lines: z.number().optional().describe("Hard cap on output lines (each line ≈ one folder or file). Default 5000."),
+  },
+  async ({ project_id, include_tags, show_titles, max_lines }) => {
+    const opts: any = { dataDir };
+    if (project_id !== undefined) opts.project_id = project_id;
+    if (include_tags !== undefined) opts.include_tags = include_tags;
+    if (show_titles !== undefined) opts.show_titles = show_titles;
+    if (max_lines !== undefined) opts.max_lines = max_lines;
+    const result = projectMap(opts);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify(
+            {
+              stats: result.stats,
+              est_tokens: result.est_tokens,
+              outline: result.outline,
+            },
+            null,
+            2
+          ),
         },
       ],
     };

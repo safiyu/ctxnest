@@ -4,20 +4,22 @@ import { fetchHtml, extractFromHtml, ClipError } from "./extract.js";
 import { buildFrontmatter, hashBody } from "./frontmatter.js";
 
 export { ClipError } from "./extract.js";
-export type { ClipErrorCode } from "./extract.js";
+export type { ClipErrorCode, ClipErrorDetails, AuthSignal } from "./extract.js";
 
 export interface ClipUrlOptions {
   url: string;
   title?: string;
   dataDir: string;
+  /** Optional headers (cookies, auth) forwarded to the fetch. */
+  headers?: Record<string, string>;
 }
 
 const URLCLIPS_FOLDER = "urlclips";
 
 export async function clipUrl(opts: ClipUrlOptions): Promise<FileRecordWithContent> {
-  const { url, title: titleOverride, dataDir } = opts;
+  const { url, title: titleOverride, dataDir, headers } = opts;
 
-  const { html, finalUrl } = await fetchHtml(url);
+  const { html, finalUrl } = await fetchHtml(url, { headers });
   const { title: extractedTitle, markdown } = await extractFromHtml(html, finalUrl);
   const title = (titleOverride ?? extractedTitle).trim() || "Untitled";
 
