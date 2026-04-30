@@ -13,6 +13,39 @@ export interface FileRecordWithRank extends FileRecord {
   rank: number;
 }
 
+export interface RelatedFileRecord extends FileRecord {
+  shared_tag_count: number;
+  shared_tags: string[];
+}
+
+export function findRelated(fileId: number, limit: number = 10): RelatedFileRecord[] {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        f.*,
+        COUNT(ft2.tag_id) AS shared_tag_count,
+        GROUP_CONCAT(t.name) AS shared_tags_csv
+      FROM file_tags ft1
+      JOIN file_tags ft2 ON ft1.tag_id = ft2.tag_id
+      JOIN files f ON f.id = ft2.file_id
+      JOIN tags t ON t.id = ft2.tag_id
+      WHERE ft1.file_id = ?
+        AND ft2.file_id != ?
+      GROUP BY f.id
+      ORDER BY shared_tag_count DESC, f.updated_at DESC
+      LIMIT ?
+      `
+    )
+    .all(fileId, fileId, limit) as Array<FileRecord & { shared_tag_count: number; shared_tags_csv: string }>;
+
+  return rows.map(({ shared_tags_csv, ...rest }) => ({
+    ...rest,
+    shared_tags: shared_tags_csv ? shared_tags_csv.split(",") : [],
+  }));
+}
+
 /**
  * Convert name to slug (lowercase, alphanumeric with dashes)
  */

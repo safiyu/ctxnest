@@ -51,7 +51,7 @@ export function NewFileDialog({ open, onClose, onCreate, currentProjectId, avail
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between">
             <h3 className="text-lg font-bold text-amber-accent">CREATE NEW CONTEXT</h3>
-            <button type="button" onClick={onClose} className="text-gray-500 hover:text-[var(--text-primary)]">✕</button>
+            <button type="button" onClick={onClose} className="btn btn-icon-md" aria-label="Close dialog">✕</button>
           </div>
 
           <div className="p-6 space-y-4">
@@ -101,11 +101,7 @@ export function NewFileDialog({ open, onClose, onCreate, currentProjectId, avail
                 <button
                   type="button"
                   onClick={() => setDestination("knowledge")}
-                  className={`flex-1 py-2 px-3 text-[11px] font-bold rounded border transition-colors ${
-                    destination === "knowledge"
-                      ? "bg-amber-accent text-black border-amber-accent"
-                      : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-gray-500"
-                  }`}
+                  className={`btn btn-sm flex-1 ${destination === "knowledge" ? "border-[#d4903a]" : ""}`}
                 >
                   KNOWLEDGE BASE
                 </button>
@@ -113,11 +109,7 @@ export function NewFileDialog({ open, onClose, onCreate, currentProjectId, avail
                   <button
                     type="button"
                     onClick={() => setDestination("project")}
-                    className={`flex-1 py-2 px-3 text-[11px] font-bold rounded border transition-colors ${
-                      destination === "project"
-                        ? "bg-amber-accent text-black border-amber-accent"
-                        : "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-gray-500"
-                    }`}
+                    className={`btn btn-sm flex-1 ${destination === "project" ? "border-[#d4903a]" : ""}`}
                   >
                     PROJECT ROOT
                   </button>
@@ -141,14 +133,14 @@ export function NewFileDialog({ open, onClose, onCreate, currentProjectId, avail
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-[var(--text-primary)]"
+              className="btn btn-md"
             >
               CANCEL
             </button>
             <button
               type="submit"
               disabled={loading || !title.trim()}
-              className="px-6 py-2 bg-amber-accent text-black text-xs font-bold rounded hover:bg-amber-accent-dark transition-colors disabled:opacity-50"
+              className="btn btn-md"
             >
               {loading ? "CREATING..." : "CREATE FILE"}
             </button>

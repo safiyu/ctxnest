@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FileListFilter } from "./file-list-filter";
 import { FileItem } from "./file-item";
 import { UploadFilesDialog } from "./upload-files-dialog";
+import { ClipUrlDialog } from "./clip-url-dialog";
 
 interface Project {
   id: number;
@@ -41,6 +42,8 @@ interface FileListProps {
   loading?: boolean;
   projects?: Project[];
   onUploaded?: () => void;
+  onRefresh: () => void;
+  onNewFile: () => void;
 }
 
 export function FileList({
@@ -59,13 +62,33 @@ export function FileList({
   loading,
   projects,
   onUploaded,
+  onRefresh,
+  onNewFile,
 }: FileListProps) {
   const [filter, setFilter] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [clipDialogOpen, setClipDialogOpen] = useState(false);
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const newMenuRef = useRef<HTMLDivElement>(null);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setSelectedIds(new Set()); }, [selectedFolder, selectedProject?.id, selectedSection, filter]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (newMenuOpen && newMenuRef.current && !newMenuRef.current.contains(e.target as Node)) {
+        setNewMenuOpen(false);
+      }
+      if (projectMenuOpen && projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node)) {
+        setProjectMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [newMenuOpen, projectMenuOpen]);
 
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
@@ -126,45 +149,94 @@ export function FileList({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-1 px-2 py-1 border-b border-[var(--border)]">
-        <button
-          type="button"
-          onClick={() => setUploadOpen(true)}
-          className="text-[11px] px-2 py-1 text-[var(--text-secondary)] hover:text-amber-accent"
-          title="Upload markdown files"
-        >
-          ↑ Upload
-        </button>
-        {selectedSection === "projects" && selectedProject && !selectedFolder && (
-          <a
-            href={`/api/export/zip?project_id=${selectedProject.id}`}
-            download
-            className="text-[11px] px-2 py-1 text-[var(--text-secondary)] hover:text-amber-accent"
-            title="Download project as ZIP"
+      <div className="flex items-center gap-1.5 px-1.5 py-1.5 border-b border-[var(--border)]">
+        <div className="relative flex-1" ref={newMenuRef}>
+          <button
+            type="button"
+            onClick={() => setNewMenuOpen((v) => !v)}
+            className="btn btn-sm w-full"
+            title="Add content to the knowledge base"
           >
-            ↓ Project ZIP
-          </a>
-        )}
-        {selectedSection === "projects" && selectedProject && selectedFolder && (
-          <a
-            href={`/api/export/zip?project_id=${selectedProject.id}&folder=${encodeURIComponent(selectedFolder)}`}
-            download
-            className="text-[11px] px-2 py-1 text-[var(--text-secondary)] hover:text-amber-accent"
-            title="Download folder as ZIP"
-          >
-            ↓ Folder ZIP
-          </a>
+            New <span className="opacity-60 text-xs">▾</span>
+          </button>
+          {newMenuOpen && (
+            <div className="dropdown-menu left-0 w-full">
+              <button
+                type="button"
+                onClick={() => { setNewMenuOpen(false); onNewFile(); }}
+                className="dropdown-item"
+              >
+                <span>+</span> New File
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewMenuOpen(false); setUploadOpen(true); }}
+                className="dropdown-item"
+              >
+                <span>↑</span> Upload Files
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNewMenuOpen(false); setClipDialogOpen(true); }}
+                className="dropdown-item"
+              >
+                <span>↗</span> Clip URL
+              </button>
+            </div>
+          )}
+        </div>
+        {selectedSection === "projects" && selectedProject && (
+          <div className="relative flex-1" ref={projectMenuRef}>
+            <button
+              type="button"
+              onClick={() => setProjectMenuOpen((v) => !v)}
+              className="btn btn-sm w-full"
+              title="Project actions"
+            >
+              Project <span className="opacity-60 text-xs">▾</span>
+            </button>
+            {projectMenuOpen && (
+              <div className="dropdown-menu left-0 w-full">
+                <a
+                  href={selectedFolder 
+                    ? `/api/export/zip?project_id=${selectedProject.id}&folder=${encodeURIComponent(selectedFolder)}`
+                    : `/api/export/zip?project_id=${selectedProject.id}`}
+                  download
+                  onClick={() => setProjectMenuOpen(false)}
+                  className="dropdown-item"
+                >
+                  <span>↓</span> Export ZIP
+                </a>
+                <button
+                  type="button"
+                  onClick={() => { setProjectMenuOpen(false); onSync(); }}
+                  className="dropdown-item"
+                >
+                  <span>↻</span> Sync Project
+                </button>
+                {!selectedFolder && onUnregisterProject && (
+                  <button
+                    type="button"
+                    onClick={() => { setProjectMenuOpen(false); onUnregisterProject(); }}
+                    className="dropdown-item text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                  >
+                    <span>✕</span> Unregister
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
         <button
           type="button"
           onClick={() => { setSelectMode((v) => !v); setSelectedIds(new Set()); }}
-          className={`ml-auto text-[11px] px-2 py-1 ${selectMode ? "text-amber-accent" : "text-[var(--text-secondary)] hover:text-amber-accent"}`}
+          className="btn btn-sm flex-1"
           title="Toggle multi-select"
         >
-          {selectMode ? "✓ Select" : "Select"}
+          {selectMode ? "Selected" : "Select"}
         </button>
       </div>
-      <div className="px-3 py-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)]">
+      <div className="px-3 py-2 flex items-center justify-between text-[12px] uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)]">
         <span>
           {filteredAndSorted.length} {filteredAndSorted.length === 1 ? "file" : "files"}
           {(() => {
@@ -172,15 +244,17 @@ export function FileList({
             return total > 0 ? ` · ~${formatTokens(total)} tok` : "";
           })()}
         </span>
-        <select
-          value={sortBy}
-          onChange={(e) => onSortChange(e.target.value as SortBy)}
-          className="bg-transparent text-[11px] uppercase tracking-wider focus:outline-none cursor-pointer"
-        >
-          <option value="updated_at">updated</option>
-          <option value="created_at">created</option>
-          <option value="name">name</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={sortBy}
+            onChange={(e) => onSortChange(e.target.value as SortBy)}
+            className="bg-transparent text-[11px] uppercase tracking-wider focus:outline-none cursor-pointer"
+          >
+            <option value="updated_at">updated</option>
+            <option value="created_at">created</option>
+            <option value="name">name</option>
+          </select>
+        </div>
       </div>
       {files.length > 10 && <FileListFilter value={filter} onChange={setFilter} />}
 
@@ -199,7 +273,7 @@ export function FileList({
               <button
                 type="button"
                 onClick={() => setSelectedIds(new Set())}
-                className="px-2 py-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                className="btn btn-sm"
               >
                 Clear
               </button>
@@ -282,6 +356,11 @@ export function FileList({
           setUploadOpen(false);
           onUploaded?.();
         }}
+      />
+      <ClipUrlDialog
+        open={clipDialogOpen}
+        onClose={() => setClipDialogOpen(false)}
+        onClipped={() => { onRefresh(); }}
       />
     </div>
   );

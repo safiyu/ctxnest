@@ -19,15 +19,15 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="h-8 px-4 flex items-center gap-1.5 text-[13px] border-b border-[var(--border)] bg-[var(--bg-primary)] text-[var(--text-secondary)] select-none"
+      className="h-8 px-4 flex items-center gap-1.5 text-[13px] border-b border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] select-none"
     >
       {segments.map((seg, i) => {
         const isLast = i === segments.length - 1;
         return (
           <span key={`${i}-${seg.label}`} className="flex items-center gap-1.5">
-            {i > 0 && <span className="text-[var(--border)]">›</span>}
+            {i > 0 && <span className="opacity-40">›</span>}
             {isLast || !seg.onClick ? (
-              <span className={isLast ? "text-[var(--text-primary)] font-medium" : ""}>{seg.label}</span>
+              <span className={isLast ? "font-bold" : ""}>{seg.label}</span>
             ) : (
               <button
                 onClick={seg.onClick}

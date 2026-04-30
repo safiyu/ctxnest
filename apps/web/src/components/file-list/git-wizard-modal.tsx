@@ -81,13 +81,16 @@ export function GitWizardModal({ isOpen, onClose, onSave, currentUrl }: GitWizar
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-2xl w-[480px] max-w-[90vw] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-          <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-wide">
-            Configure Context Vault
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Choose how CtxNest connects to your remote Git repository.
-          </p>
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-wide">
+              Configure Context Vault
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Choose how CtxNest connects to your remote Git repository.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="btn btn-icon-md" aria-label="Close dialog">✕</button>
         </div>
 
         <div className="p-6 flex flex-col gap-6">
@@ -99,31 +102,19 @@ export function GitWizardModal({ isOpen, onClose, onSave, currentUrl }: GitWizar
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setMethod("ssh")}
-                className={`p-2 rounded border text-xs font-bold transition-colors ${
-                  method === "ssh"
-                    ? "bg-amber-accent/10 border-amber-accent text-amber-accent dark:text-amber-accent"
-                    : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
+                className={`btn btn-md ${method === "ssh" ? "border-[#d4903a]" : ""}`}
               >
                 SSH
               </button>
               <button
                 onClick={() => setMethod("https_pat")}
-                className={`p-2 rounded border text-xs font-bold transition-colors ${
-                  method === "https_pat"
-                    ? "bg-amber-accent/10 border-amber-accent text-amber-accent dark:text-amber-accent"
-                    : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
+                className={`btn btn-md ${method === "https_pat" ? "border-[#d4903a]" : ""}`}
               >
                 HTTPS + PAT
               </button>
               <button
                 onClick={() => setMethod("https_basic")}
-                className={`p-2 rounded border text-xs font-bold transition-colors ${
-                  method === "https_basic"
-                    ? "bg-amber-accent/10 border-amber-accent text-amber-accent dark:text-amber-accent"
-                    : "bg-transparent border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
+                className={`btn btn-md ${method === "https_basic" ? "border-[#d4903a]" : ""}`}
               >
                 HTTPS (CLI)
               </button>
@@ -205,14 +196,14 @@ export function GitWizardModal({ isOpen, onClose, onSave, currentUrl }: GitWizar
         <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            className="btn btn-md"
           >
             CANCEL
           </button>
           <button
             onClick={handleSave}
             disabled={!isFormValid() || saving}
-            className="px-4 py-2 bg-amber-accent hover:bg-amber-accent-dark text-black text-xs font-bold rounded transition-colors disabled:opacity-50"
+            className="btn btn-md"
           >
             {saving ? "SAVING..." : "SAVE CONFIGURATION"}
           </button>

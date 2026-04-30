@@ -56,6 +56,7 @@ export interface FileFilters {
   favorite?: boolean;
   folder?: string;
   storage_type?: StorageType;
+  untagged?: boolean;
   limit?: number;
   offset?: number;
 }

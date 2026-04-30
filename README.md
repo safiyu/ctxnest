@@ -34,6 +34,7 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 - **Obsidian-Chic Aesthetics**: High-contrast amber/rust identity (#D4903A) optimized for deep focus.
 - **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
 - **Time Travel**: Built-in Git versioning for every single edit, even in your personal Knowledge Base.
+- **Web Clipping**: Capture any web page as clean Markdown into your Knowledge Base — Readability-extracted, frontmatter-tagged, deduped by URL. Available from the `+ New` dropdown in the UI and as the `clip_url` MCP tool so agents can pull in third-party docs on the fly.
 
 ## AI Agent Capabilities
 
@@ -43,14 +44,22 @@ CtxNest transforms your AI assistant from a simple chatbot into a high-context c
     *   *Prompt: "Find auth system notes in CtxNest."*
 2.  **Two-Way Sync**: Agents write research and plans directly to your version-controlled vault.
     *   *Prompt: "Save this technical migration plan to CtxNest."*
-3.  **Time-Travel**: Analyze documentation evolution via built-in Git history.
-    *   *Prompt: "Compare today's architecture notes with last week's version."*
+3.  **Time-Travel**: Analyze documentation evolution via built-in Git history. The `get_history` and `get_diff` MCP tools let agents inspect how a file evolved and see the actual changes between any two commits — useful for explaining *why* a decision was made, not just what the current state is.
+    *   *Prompt: "Show me the history of the auth-architecture note and diff today's version against last week's — I want to understand what changed and why."*
 4.  **Auto-Indexing**: Agents keep their knowledge map updated automatically as you add files.
     *   *Prompt: "Discover and index any new markdown files in the docs/ folder."*
 5.  **Global Patterns**: Apply your personal "Global Vault" standards to any local project.
     *   *Prompt: "Use the coding standards from my personal Knowledge Base for this fix."*
 6.  **Live Awareness**: Agents instantly "see" your local documentation edits via the file watcher.
     *   *Prompt: "I just updated the API schema on disk, please re-scan the context."*
+7.  **Web Clipping**: Agents pull in unfamiliar library docs mid-task and reference them throughout the conversation. Clips land in `knowledge/urlclips/` as clean Markdown; re-clipping the same URL refreshes in place.
+    *   *Prompt: "Clip the Terraform `aws_instance` resource docs into CtxNest so we can reference them while writing this module."*
+8.  **Reusable Templates**: Save plan / spec / postmortem templates as plain Markdown files (a `knowledge/templates/` folder is the convention) and have agents pull them via `list_files` + `read_file` whenever you start a new feature. No special tool needed — the existing CRUD covers it.
+    *   *Prompt: "List the templates in CtxNest and pull the `api-route` one so we follow our conventions for this new endpoint."*
+9.  **Agent-Assisted Tagging**: Pass `untagged: true` to `list_files` to surface every file that's never been tagged, then have the agent read each one and call `add_tags` based on the content. Keeps the knowledge base organized without inventing a server-side LLM dependency — the agent in the loop *is* the tagger.
+    *   *Prompt: "Find all my untagged files in CtxNest, read each one, and apply 1–3 relevant tags so they're easier to search later."*
+10. **Related-Context Lookup**: The `find_related` MCP tool returns files ranked by shared-tag overlap with a given file. Surfaces logically connected context that might not match the same search keywords — turns your tag system into a lightweight knowledge graph. (A visual graph view is a planned follow-up.)
+    *   *Prompt: "I'm reading the auth-architecture note. Find related files in CtxNest so I have full context before suggesting changes."*
 
 ## A Local-First RAG Alternative
 

@@ -89,10 +89,10 @@ export function FileItem({ id, title, updatedAt, active, onClick, estTokens, sel
           <FileIcon className="w-4 h-4 mt-1 text-amber-accent shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold truncate text-[#0F172A] dark:text-[#F8F9FA]">
+          <div className="text-base font-semibold truncate text-[#0F172A] dark:text-[#F8F9FA]">
             {title}
           </div>
-          <div className="text-xs text-[#475569] dark:text-[#94A3B8] mt-1">
+          <div className="text-sm text-[#475569] dark:text-[#94A3B8] mt-1">
             {formatTimeAgo(updatedAt)}
             {typeof estTokens === "number" && estTokens > 0 ? ` · ~${formatTokens(estTokens)} tok` : ""}
           </div>
@@ -130,7 +130,8 @@ export function FileItem({ id, title, updatedAt, active, onClick, estTokens, sel
               }
             }}
             title="Download .md"
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[var(--text-secondary)] hover:text-amber-accent"
+            aria-label="Download file"
+            className="btn btn-icon-sm opacity-0 group-hover:opacity-100"
           >
             <DownloadIcon className="w-4 h-4" />
           </button>

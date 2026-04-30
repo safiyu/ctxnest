@@ -136,24 +136,24 @@ export function StatusBar({
     : null;
 
   return (
-    <footer className="relative h-7 border-t border-[var(--border)] bg-[var(--bg-secondary)] px-4 flex items-center gap-2.5 text-[12px] text-[var(--text-secondary)] font-mono">
+    <footer className="relative h-7 border-t border-[var(--border)] bg-[var(--bg-secondary)] px-4 flex items-center gap-2.5 text-[13px] text-[var(--text-secondary)] font-mono">
       <span style={{ color: dotColor }} className={status === "syncing" ? "animate-pulse" : ""}>
         ●
       </span>
       <span>{label}</span>
       <span className="text-[var(--border)]">·</span>
-      <span className={status === "syncing" ? "text-[var(--warning)]" : ""}>
+      <span className={`font-medium ${status === "syncing" ? "text-[var(--warning)]" : ""}`}>
         git: {status === "syncing" ? (stage || "working") : "clean"}
       </span>
       {remoteLabel && (
         <>
           <span className="text-[var(--border)]">·</span>
-          <span className="truncate max-w-[260px]">{remoteLabel}</span>
+          <span className="truncate max-w-[260px] opacity-70">{remoteLabel}</span>
         </>
       )}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="ml-auto px-2 py-0.5 rounded text-[var(--accent)] hover:bg-[var(--bg-tertiary)]"
+        className="ml-auto px-2 py-0.5 rounded text-[var(--accent)] hover:bg-[var(--bg-tertiary)] font-bold uppercase tracking-wider"
         title="Open sync menu"
       >
         Sync ▾

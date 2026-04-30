@@ -42,13 +42,13 @@ export function UnregisterModal({
           <div className="flex flex-col gap-3">
             <button
               onClick={onConfirm}
-              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all btn-press shadow-lg shadow-red-900/20"
+              className="btn btn-md btn-destructive"
             >
               YES, UNREGISTER PROJECT
             </button>
             <button
               onClick={onClose}
-              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-all"
+              className="btn btn-md"
             >
               CANCEL
             </button>

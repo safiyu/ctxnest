@@ -90,7 +90,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         <div className="p-3 border-t border-[var(--border-color)] text-center">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-amber-accent text-black font-semibold rounded hover:bg-amber-accent-dark transition-colors btn-press"
+            className="btn btn-md"
           >
             Close
           </button>

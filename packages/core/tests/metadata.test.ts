@@ -17,6 +17,7 @@ import {
   discoverFiles,
   listTags,
   listProjects,
+  findRelated,
 } from "../src/metadata/index.js";
 
 import { tmpdir } from "node:os";
@@ -269,5 +270,44 @@ describe("Metadata Module", () => {
     expect(projects).toHaveLength(2);
     expect(projects[0].name).toBe("Alpha Project");
     expect(projects[1].name).toBe("Zeta Project");
+  });
+
+  describe("findRelated", () => {
+    it("ranks by shared tag count, excludes the source file, returns shared tag names", async () => {
+      const a = await createFile({ title: "A", content: "x", destination: "knowledge", dataDir });
+      const b = await createFile({ title: "B", content: "x", destination: "knowledge", dataDir });
+      const c = await createFile({ title: "C", content: "x", destination: "knowledge", dataDir });
+      const d = await createFile({ title: "D", content: "x", destination: "knowledge", dataDir });
+
+      addTags(a.id, ["auth", "security", "architecture"]);
+      addTags(b.id, ["auth", "security"]);            // shares 2 with A
+      addTags(c.id, ["auth"]);                         // shares 1 with A
+      addTags(d.id, ["unrelated"]);                    // shares 0
+
+      const related = findRelated(a.id);
+
+      expect(related.map((r) => r.id)).toEqual([b.id, c.id]);
+      expect(related[0].shared_tag_count).toBe(2);
+      expect(related[0].shared_tags.sort()).toEqual(["auth", "security"]);
+      expect(related[1].shared_tag_count).toBe(1);
+      expect(related[1].shared_tags).toEqual(["auth"]);
+      expect(related.find((r) => r.id === a.id)).toBeUndefined();
+      expect(related.find((r) => r.id === d.id)).toBeUndefined();
+    });
+
+    it("returns empty array when the source file has no tags", async () => {
+      const f = await createFile({ title: "F", content: "x", destination: "knowledge", dataDir });
+      expect(findRelated(f.id)).toEqual([]);
+    });
+
+    it("respects the limit parameter", async () => {
+      const src = await createFile({ title: "S", content: "x", destination: "knowledge", dataDir });
+      addTags(src.id, ["common"]);
+      for (let i = 0; i < 5; i++) {
+        const other = await createFile({ title: `O${i}`, content: "x", destination: "knowledge", dataDir });
+        addTags(other.id, ["common"]);
+      }
+      expect(findRelated(src.id, 3)).toHaveLength(3);
+    });
   });
 });

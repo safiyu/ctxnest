@@ -126,7 +126,7 @@ export function FolderTree({
   return (
     <div className="p-2 space-y-3">
       <div>
-        <div className="px-2 pt-2 pb-1 text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">
+        <div className="px-2 pt-2 pb-1 text-[12px] uppercase tracking-wider text-[var(--text-secondary)]">
           Projects
         </div>
         <div className="space-y-0.5">
@@ -168,19 +168,21 @@ export function FolderTree({
         <div className="flex items-center justify-between px-2 pt-2 pb-1">
           <button
             onClick={onSelectKnowledge}
-            className={`text-[11px] uppercase tracking-wider transition-colors ${
+            className={`text-[12px] uppercase tracking-wider transition-colors ${
               selectedSection === "knowledge" && !selectedFolder
                 ? "text-[var(--accent)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
+            aria-label="Select knowledge base"
           >
             Knowledge
           </button>
           <button
             onClick={() => onCreateFolder(0)}
-            className="text-[11px] uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+            className="btn btn-sm"
+            aria-label="Create new folder"
           >
-            + folder
+            + Folder
           </button>
         </div>
         <div className="space-y-0.5">

@@ -21,6 +21,12 @@ import {
   syncBackup,
   bundleSearch,
   estimateTokensFromBuffer,
+  clipUrl,
+  ClipError,
+  getHistory,
+  getDiff,
+  getDatabase,
+  findRelated,
 } from "@ctxnest/core";
 import { join } from "node:path";
 import { statSync, openSync, readSync, closeSync } from "node:fs";
@@ -66,7 +72,7 @@ createDatabase(dbPath);
 
 const server = new McpServer({
   name: "ctxnest",
-  version: "0.1.0",
+  version: "3.0.0",
 });
 
 server.tool(
@@ -147,15 +153,17 @@ server.tool(
     tag: z.string().optional().describe("Filter by tag name"),
     favorite: z.boolean().optional().describe("Filter by favorite status"),
     folder: z.string().optional().describe("Filter by folder path"),
+    untagged: z.boolean().optional().describe("If true, return only files that have no tags. Useful for bulk-tagging workflows."),
     limit: z.number().optional().describe("Maximum number of results"),
     offset: z.number().optional().describe("Offset for pagination"),
   },
-  async ({ project_id, tag, favorite, folder, limit, offset }) => {
+  async ({ project_id, tag, favorite, folder, untagged, limit, offset }) => {
     const filters: any = {};
     if (project_id !== undefined) filters.project_id = project_id;
     if (tag !== undefined) filters.tag = tag;
     if (favorite !== undefined) filters.favorite = favorite;
     if (folder !== undefined) filters.folder = folder;
+    if (untagged !== undefined) filters.untagged = untagged;
     if (limit !== undefined) filters.limit = limit;
     if (offset !== undefined) filters.offset = offset;
 
@@ -346,6 +354,119 @@ server.tool(
             null,
             2
           ),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "clip_url",
+  "Clip a web page into the knowledge base as cleaned Markdown. Fetches the URL, extracts the main article content (Readability), converts to Markdown, and stores it under knowledge/urlclips/. Re-clipping the same URL updates the existing file in place.",
+  {
+    url: z.string().url().describe("The URL to clip"),
+    title: z.string().optional().describe("Optional title override (defaults to the page's <title>)"),
+  },
+  async ({ url, title }) => {
+    try {
+      const file = await clipUrl({ url, title, dataDir });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                file_id: file.id,
+                path: file.path,
+                title: file.title,
+                source: file.source_path,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (e) {
+      const code = e instanceof ClipError ? e.code : "INTERNAL_ERROR";
+      const message = (e as Error).message ?? String(e);
+      return {
+        isError: true,
+        content: [{ type: "text", text: JSON.stringify({ code, message }) }],
+      };
+    }
+  }
+);
+
+// Resolves the git repo dir for a file: reference files live in the project's
+// own repo, everything else lives in the global data dir.
+function repoDirForFile(file: { storage_type: string; project_id: number | null }): string {
+  if (file.storage_type === "reference" && file.project_id) {
+    const project = getDatabase()
+      .prepare("SELECT path FROM projects WHERE id = ?")
+      .get(file.project_id) as { path: string | null } | undefined;
+    if (project?.path) return project.path;
+  }
+  return dataDir;
+}
+
+server.tool(
+  "get_history",
+  "List the commit history for a context file. Returns each commit as { hash, message, date, author }, newest first. Useful for explaining how a piece of context evolved over time.",
+  {
+    file_id: z.number().describe("ID of the file"),
+  },
+  async ({ file_id }) => {
+    const file = readFile(file_id);
+    const history = await getHistory(repoDirForFile(file), file.path);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ file_id, path: file.path, history }, null, 2),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "get_diff",
+  "Get the unified diff of a context file between two commits. Use the hashes returned by get_history. Lets agents see what actually changed, not just that something changed.",
+  {
+    file_id: z.number().describe("ID of the file"),
+    commit_a: z.string().describe("Earlier commit hash (from get_history)"),
+    commit_b: z.string().describe("Later commit hash (from get_history)"),
+  },
+  async ({ file_id, commit_a, commit_b }) => {
+    const file = readFile(file_id);
+    const diff = await getDiff(repoDirForFile(file), file.path, commit_a, commit_b);
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ file_id, path: file.path, commit_a, commit_b, diff }, null, 2),
+        },
+      ],
+    };
+  }
+);
+
+server.tool(
+  "find_related",
+  "Find other context files related to the given file by overlap of tags. Returns files ranked by shared tag count (highest first), each annotated with which tags they share. Surfaces logically related context that might not match the same search keywords.",
+  {
+    file_id: z.number().describe("ID of the file to find relations for"),
+    limit: z.number().optional().describe("Maximum number of related files to return (default 10)"),
+  },
+  async ({ file_id, limit }) => {
+    const related = findRelated(file_id, limit ?? 10);
+    const annotated = related.map((r) => ({ ...annotateTokens(r), shared_tag_count: r.shared_tag_count, shared_tags: r.shared_tags }));
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({ file_id, related: annotated }, null, 2),
         },
       ],
     };

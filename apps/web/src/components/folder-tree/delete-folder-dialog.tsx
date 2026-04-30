@@ -35,14 +35,14 @@ export function DeleteFolderDialog({
             <button
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-[var(--text-primary)] transition-colors"
+              className="btn btn-md"
             >
               CANCEL
             </button>
             <button
               onClick={onConfirm}
               disabled={loading}
-              className="px-6 py-2 bg-red-600 text-white text-xs font-bold rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+              className="btn btn-md btn-destructive"
             >
               {loading ? "DELETING..." : "DELETE FOLDER"}
             </button>

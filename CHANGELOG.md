@@ -1,5 +1,27 @@
 # Changelog
  
+## 3.0.0 (2026-04-30)
+
+### Web Clipping & Semantic Intelligence
+- **Native Web Clipping**: Added `clip_url` tool to the MCP server and a corresponding UI in the web app to clip web pages directly into the knowledge base as cleaned Markdown.
+- **Semantic Discovery**: Introduced `find_related` to surface contextually relevant files based on shared tags.
+- **Git Context History**: Added `get_history` and `get_diff` tools to track and explain how context files have evolved over time.
+
+### Import/Export & Data Portability
+- **Knowledge Base Export**: Implemented ZIP-based export for the entire knowledge base.
+- **Batch Operations**: Added "Import/Export" feature to facilitate moving data between CtxNest instances.
+- **Bulk Metadata Management**: Added "Untagged" filter to `list_files` for easier bulk-tagging and organization workflows.
+
+### Core & Performance
+- **Source Path Indexing**: Added new database index for `source_path` to optimize file lookups and synchronization.
+- **Enhanced Token Estimation**: Standardized token counting heuristics across core and MCP layers.
+- **Git Reliability**: Improved Git commit logic with explicit GPG-signing suppression for local backups.
+
+### UI/UX Refinement
+- **Animated Branding**: Introduced new animated logo components.
+- **Knowledge Base UX**: Redesigned file list and content pane interactions.
+- **Refined Status Indicators**: Improved real-time feedback for sync and background operations.
+
 ## 2.0.0 (2026-04-29)
 
 ### UI & UX Polish

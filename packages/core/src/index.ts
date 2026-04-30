@@ -4,9 +4,11 @@ export { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, crea
 export {
   addTags, removeTags, setFavorite, search,
   registerProject, unregisterProject, discoverFiles, listTags, listProjects,
+  findRelated, type RelatedFileRecord,
 } from "./metadata/index.js";
 export { commitFile, getHistory, getDiff, restoreVersion, syncBackup, getGlobalRemote, setGlobalRemote, type SyncStage } from "./git/index.js";
 export { createFileWatcher, type WatcherEvent } from "./watcher/index.js";
 export { bundleSearch, type BundleFormat, type BundleOptions, type BundleResult, type BundleIncludedItem, type BundleSkippedItem } from "./bundle/index.js";
 export { estimateTokensFromBuffer, estimateTokensFromString } from "./util/tokens.js";
 export type * from "./types.js";
+export { clipUrl, ClipError, type ClipErrorCode, type ClipUrlOptions } from "./clip/index.js";

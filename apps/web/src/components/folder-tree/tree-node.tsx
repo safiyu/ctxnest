@@ -34,7 +34,7 @@ export function TreeNode({
     <div>
       <div
         onClick={handleClick}
-        className={`relative flex items-center gap-1.5 py-1 px-2 rounded text-[13px] cursor-pointer transition-colors ${
+        className={`relative flex items-center gap-1.5 py-1.5 px-2 rounded text-sm cursor-pointer transition-colors ${
           active
             ? "bg-[var(--accent-soft)] text-[var(--accent)]"
             : "text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"

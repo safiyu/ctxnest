@@ -11,6 +11,7 @@ import { AboutDialog } from "@/components/about/about-dialog";
 import { NewFileDialog } from "@/components/content/new-file-dialog";
 import { NewFolderDialog } from "@/components/folder-tree/new-folder-dialog";
 import { DeleteFolderDialog } from "@/components/folder-tree/delete-folder-dialog";
+import { UnregisterModal } from "@/components/file-list/unregister-modal";
 import { useProjects } from "@/hooks/use-projects";
 import { useFiles } from "@/hooks/use-files";
 import { useFolders } from "@/hooks/use-folders";
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [newFileOpen, setNewFileOpen] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [deleteFolderConfirmOpen, setDeleteFolderConfirmOpen] = useState(false);
+  const [unregisterConfirmOpen, setUnregisterConfirmOpen] = useState(false);
   const [deletingFolder, setDeletingFolder] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [targetProjectId, setTargetProjectId] = useState<number | null>(null);
@@ -382,7 +384,6 @@ export default function HomePage() {
     <div className="h-screen flex flex-col">
       <TopBar
         onSearch={() => setSearchOpen(true)}
-        onNewFile={() => setNewFileOpen(true)}
         onAbout={() => setAboutOpen(true)}
       />
       <Breadcrumb segments={breadcrumbSegments} />
@@ -425,10 +426,12 @@ export default function HomePage() {
             basePath={selectedSection === "projects" ? projectBasePath : knowledgeBasePath}
             loading={filesLoading || projectsLoading}
             onSync={handleSync}
-            onUnregisterProject={handleUnregisterProject}
+            onUnregisterProject={() => setUnregisterConfirmOpen(true)}
             onDeleteFolder={handleDeleteFolder}
             projects={projects}
             onUploaded={() => { refreshFiles(); refreshAllFiles(); }}
+            onRefresh={() => { refreshFiles(); refreshAllFiles(); }}
+            onNewFile={() => setNewFileOpen(true)}
           />
         }
         right={<ContentPane fileId={selectedFileId} onDelete={handleDeleteFile} />}
@@ -472,6 +475,16 @@ export default function HomePage() {
         onClose={() => setDeleteFolderConfirmOpen(false)}
         onConfirm={onConfirmDeleteFolder}
         loading={deletingFolder}
+      />
+
+      <UnregisterModal
+        isOpen={unregisterConfirmOpen}
+        projectName={selectedProject?.name || ""}
+        onClose={() => setUnregisterConfirmOpen(false)}
+        onConfirm={() => {
+          handleUnregisterProject();
+          setUnregisterConfirmOpen(false);
+        }}
       />
     </div>
   );

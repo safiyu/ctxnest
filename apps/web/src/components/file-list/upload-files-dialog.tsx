@@ -91,7 +91,7 @@ export function UploadFilesDialog({ open, onClose, projects, defaultProjectId, d
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between">
             <h3 className="text-lg font-bold text-amber-accent">UPLOAD MARKDOWN FILES</h3>
-            <button type="button" onClick={onClose} className="text-gray-500 hover:text-[var(--text-primary)]">✕</button>
+            <button type="button" onClick={onClose} className="btn btn-icon-md" aria-label="Close dialog">✕</button>
           </div>
 
           <div className="p-6 space-y-4">
@@ -109,7 +109,7 @@ export function UploadFilesDialog({ open, onClose, projects, defaultProjectId, d
                   {files.map((f, i) => (
                     <li key={i} className="flex items-center justify-between py-0.5">
                       <span className="truncate">{f.name}</span>
-                      <button type="button" className="ml-2 text-gray-500 hover:text-red-500" onClick={() => setFiles((arr) => arr.filter((_, j) => j !== i))}>✕</button>
+                      <button type="button" className="btn btn-icon-sm btn-destructive" aria-label={`Remove ${f.name}`} onClick={() => setFiles((arr) => arr.filter((_, j) => j !== i))}>✕</button>
                     </li>
                   ))}
                 </ul>
@@ -179,11 +179,11 @@ export function UploadFilesDialog({ open, onClose, projects, defaultProjectId, d
           </div>
 
           <div className="px-6 py-4 border-t border-[var(--border-color)] flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Close</button>
+            <button type="button" onClick={onClose} className="btn btn-md">Close</button>
             <button
               type="submit"
               disabled={busy || files.length === 0}
-              className="px-4 py-1.5 text-xs font-bold bg-amber-accent text-black rounded disabled:opacity-50"
+              className="btn btn-md"
             >
               {busy ? "Uploading…" : "Upload"}
             </button>

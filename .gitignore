@@ -14,3 +14,4 @@ ctxnest.db
 *.db-wal
 .DS_Store
 test_output.txt
+scratch/

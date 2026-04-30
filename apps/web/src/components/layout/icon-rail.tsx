@@ -52,11 +52,12 @@ function RailButton({ item, onPeek }: { item: IconRailItem; onPeek: () => void }
         item.onClick();
         if (item.peek) onPeek();
       }}
-      className={`relative w-8 h-8 rounded-md flex items-center justify-center text-[15px] transition-colors ${
+      className={`btn btn-icon-md relative ${
         item.active
           ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-          : "text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
+          : ""
       }`}
+      aria-label={item.label}
     >
       {item.active && (
         <span className="absolute -left-2 top-1 bottom-1 w-0.5 bg-[var(--accent)] rounded-full" />

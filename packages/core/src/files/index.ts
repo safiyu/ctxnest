@@ -52,6 +52,7 @@ export interface CreateFileOptions {
   folder?: string;
   tags?: string[];
   dataDir: string;
+  sourcePath?: string;
 }
 
 export interface FileRecordWithContent extends FileRecord {
@@ -85,7 +86,7 @@ export function slugify(name: string): string {
  */
 export async function createFile(opts: CreateFileOptions): Promise<FileRecordWithContent> {
   const db = getDatabase();
-  const { title, content, destination, projectId, folder, tags = [], dataDir } = opts;
+  const { title, content, destination, projectId, folder, tags = [], dataDir, sourcePath } = opts;
 
   let filePath: string;
   let storageType: StorageType;
@@ -140,8 +141,8 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   // Files + FTS + tag links in one txn so a partial failure can't leave
   // a row that's unsearchable forever.
   const insertStmt = db.prepare(`
-    INSERT INTO files (path, title, project_id, storage_type, content_hash)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO files (path, title, project_id, storage_type, source_path, content_hash)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const insertTagStmt = db.prepare("INSERT OR IGNORE INTO tags (name) VALUES (?)");
   const getTagStmt = db.prepare("SELECT id FROM tags WHERE name = ?");
@@ -149,7 +150,7 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
 
   const fileId: number = db.transaction(() => {
-    const result = insertStmt.run(filePath, title, projectId || null, storageType, contentHash);
+    const result = insertStmt.run(filePath, title, projectId || null, storageType, sourcePath || null, contentHash);
     const id = Number(result.lastInsertRowid);
 
     if (tags.length > 0) {
@@ -343,6 +344,10 @@ export function listFiles(opts: ListFilesOptions): FileRecord[] {
         WHERE file_tags.file_id = files.id AND tags.name = ?
       )`;
       params.push(filters.tag);
+    }
+
+    if (filters.untagged === true) {
+      sql += " AND NOT EXISTS (SELECT 1 FROM file_tags WHERE file_tags.file_id = files.id)";
     }
 
     if (filters.folder !== undefined) {

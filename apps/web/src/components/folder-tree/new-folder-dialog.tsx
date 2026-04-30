@@ -36,7 +36,7 @@ export function NewFolderDialog({ open, onClose, onCreate }: NewFolderDialogProp
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between">
             <h3 className="text-lg font-bold text-amber-accent">CREATE NEW FOLDER</h3>
-            <button type="button" onClick={onClose} className="text-gray-500 hover:text-[var(--text-primary)]">✕</button>
+            <button type="button" onClick={onClose} className="btn btn-icon-md" aria-label="Close dialog">✕</button>
           </div>
 
           <div className="p-6">
@@ -59,14 +59,14 @@ export function NewFolderDialog({ open, onClose, onCreate }: NewFolderDialogProp
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-[var(--text-primary)]"
+              className="btn btn-md"
             >
               CANCEL
             </button>
             <button
               type="submit"
               disabled={loading || !name.trim()}
-              className="px-6 py-2 bg-amber-accent text-black text-xs font-bold rounded hover:bg-amber-accent-dark transition-colors disabled:opacity-50"
+              className="btn btn-md"
             >
               {loading ? "CREATING..." : "CREATE FOLDER"}
             </button>

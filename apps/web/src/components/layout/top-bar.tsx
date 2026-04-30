@@ -6,11 +6,10 @@ import { AnimatedLogo } from "./animated-logo";
 
 interface TopBarProps {
   onSearch: () => void;
-  onNewFile: () => void;
   onAbout: () => void;
 }
 
-export function TopBar({ onSearch, onNewFile, onAbout }: TopBarProps) {
+export function TopBar({ onSearch, onAbout }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isMac, setIsMac] = useState(false);
@@ -45,17 +44,10 @@ export function TopBar({ onSearch, onNewFile, onAbout }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={onNewFile}
-          className="px-3 py-1 bg-[var(--accent)] text-[13px] font-bold tracking-wider text-black rounded-md hover:opacity-90 transition-opacity btn-press"
-        >
-          + NEW
-        </button>
-
         {mounted && (
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="w-8 h-8 flex items-center justify-center text-base text-[var(--accent)] hover:bg-[var(--bg-tertiary)] rounded-md transition-colors btn-press"
+            className="btn btn-icon-md"
             aria-label="Toggle theme"
           >
             {theme === "dark" ? "☀" : "☽"}
@@ -64,8 +56,8 @@ export function TopBar({ onSearch, onNewFile, onAbout }: TopBarProps) {
 
         <button
           onClick={onAbout}
-          className="w-8 h-8 flex items-center justify-center text-base text-[var(--accent)] hover:bg-[var(--bg-tertiary)] rounded-md transition-colors btn-press"
-          aria-label="About"
+          className="btn btn-icon-md"
+          aria-label="About CtxNest"
         >
           ⓘ
         </button>

@@ -219,10 +219,8 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
             <button
               key={mode}
               onClick={onTabClick}
-              className={`-mb-px py-2 border-b-2 transition-colors ${
-                active
-                  ? "border-[var(--accent)] text-[var(--accent)]"
-                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className={`btn btn-sm -mb-px py-2 border-b-2 transition-colors ${
+                active ? "border-[#d4903a]" : ""
               }`}
             >
               {mode[0].toUpperCase() + mode.slice(1)}
@@ -235,14 +233,14 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="px-2 py-1 bg-[var(--accent)] text-black font-bold rounded disabled:opacity-50"
+                className="btn btn-md"
               >
                 {saving ? "Saving..." : "Save"}
               </button>
               <button
                 onClick={handleCancel}
                 disabled={saving}
-                className="px-2 py-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                className="btn btn-md"
               >
                 Cancel
               </button>
@@ -260,11 +258,11 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
               )}
               <button
                 onClick={() => setDeleteDialogOpen(true)}
-                className="text-[var(--danger)] flex items-center gap-1.5 transition-opacity hover:opacity-80 group"
+                className="btn btn-md btn-destructive"
                 aria-label="Delete file"
                 title="Delete file"
               >
-                <TrashIcon className="w-4 h-4 opacity-70 group-hover:opacity-100" />
+                <TrashIcon className="w-4 h-4 opacity-70" />
                 <span className="font-bold uppercase tracking-tighter text-[11px]">Delete</span>
               </button>
             </>
@@ -310,7 +308,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
                       </div>
                       <button
                         onClick={() => handleRestore(commit.hash)}
-                        className="ml-4 px-4 py-2 bg-gray-100 dark:bg-[#252525] text-xs font-bold rounded hover:bg-amber-accent hover:text-black transition-all btn-press border border-[var(--border)]"
+                        className="ml-4 btn btn-md"
                       >
                         RESTORE
                       </button>
