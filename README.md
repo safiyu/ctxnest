@@ -1,7 +1,7 @@
 <p align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180">
 </p>
-<h1 align="center">CtxNest v2.0</h1>
+<h1 align="center">CtxNest v3.0</h1>
 <p align="center"><b>The Context Engine for Agentic Workflows</b></p>
 
 ---
@@ -33,8 +33,10 @@ Standard Git is built for code, but CtxNest is built for **Context**. While your
 - **Dual-Brain Architecture**: Segregate project-specific context from your personal Knowledge Base.
 - **Obsidian-Chic Aesthetics**: High-contrast amber/rust identity (#D4903A) optimized for deep focus.
 - **Smart Pruning**: An intelligent directory tree that hides empty system folders and focuses only on where your context lives.
-- **Time Travel**: Built-in Git versioning for every single edit, even in your personal Knowledge Base.
-- **Web Clipping**: Capture any web page as clean Markdown into your Knowledge Base — Readability-extracted, frontmatter-tagged, deduped by URL. Available from the `+ New` dropdown in the UI and as the `clip_url` MCP tool so agents can pull in third-party docs on the fly.
+- **Web Clipping**: Capture any web page as clean Markdown into your Knowledge Base — Readability-extracted, frontmatter-tagged, and deduped by URL. Available via UI and MCP.
+- **Git Intelligence**: Built-in Git versioning for every single edit. Use the `get_history` and `get_diff` MCP tools to let agents inspect how documentation evolved and see exactly what changed.
+- **ZIP Export**: Download entire projects or specific folders as portable ZIP archives directly from the browser.
+- **Token Estimation**: Per-file and per-folder token counts shown throughout the UI and reported by every MCP tool for precise context budgeting.
 
 ## AI Agent Capabilities
 
