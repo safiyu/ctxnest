@@ -1,0 +1,46 @@
+# docker-compose.hub.yml
+# Uses the pre-built image from Docker Hub — no build step required.
+# Pull and run in one command:
+#
+#   curl -fsSL https://raw.githubusercontent.com/safiyu/ctxnest/main/docker-compose.hub.yml | docker compose -f - up -d
+#
+# Or, if you have the file locally:
+#
+#   docker compose -f docker-compose.hub.yml up -d
+#
+# Data is persisted in ./ctxnest-data on the host.
+
+services:
+  ctxnest:
+    image: safiyu/ctxnest:latest
+    container_name: ctxnest
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    volumes:
+      - ./ctxnest-data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - WS_PORT=3001
+      # Inside the container the WS server must listen on all interfaces so
+      # the published port reaches it. The in-process default is 127.0.0.1.
+      - CTXNEST_WS_HOST=0.0.0.0
+      # Origin allowlist for the (non-loopback) WS server. Browsers from
+      # these origins can subscribe; everyone else is rejected. Add your
+      # production hostname (e.g. https://ctxnest.example.com) here.
+      - CTXNEST_WS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      # Optional: shared-secret token for WS auth (defends against raw
+      # clients that spoof Origin). Generate with `openssl rand -hex 32`
+      # and set CTXNEST_WS_TOKEN here AND NEXT_PUBLIC_WS_TOKEN as a
+      # build arg if using a custom build.
+      # - CTXNEST_WS_TOKEN=<generate-and-set>
+      - CTXNEST_DATA_DIR=/app/data
+      - CTXNEST_DB_PATH=/app/data/ctxnest.db
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

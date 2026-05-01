@@ -2,7 +2,11 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 
-# Install pnpm
+# Install pnpm and native build tools (required for oniguruma, better-sqlite3, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ gcc \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN npm install -g pnpm
 
 # Copy workspace configuration and lockfile

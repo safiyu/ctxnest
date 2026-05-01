@@ -56,15 +56,52 @@ Git is built for code; CtxNest is built for **context**. It gives you a **single
 
 ## Quick Start (Docker)
 
-The fastest way to deploy CtxNest is using Docker Compose. Requires Docker 24+ with the compose plugin — no Node or pnpm on the host.
+Requires Docker 24+ with the compose plugin — no Node, pnpm, or git clone needed.
+
+### Option A — Docker Hub (recommended, zero build)
+
+Pull and run the pre-built image from [Docker Hub](https://hub.docker.com/r/safiyu/ctxnest) in a single command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/safiyu/ctxnest/main/docker-compose.hub.yml \
+  | docker compose -f - up -d
+```
+
+Or download the compose file first and run it directly:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/safiyu/ctxnest/main/docker-compose.hub.yml \
+  -o docker-compose.hub.yml
+
+docker compose -f docker-compose.hub.yml up -d
+```
+
+To pin a specific release instead of `latest`:
+
+```bash
+# Edit docker-compose.hub.yml and change:
+#   image: safiyu/ctxnest:latest
+# to:
+#   image: safiyu/ctxnest:3.1.0
+docker compose -f docker-compose.hub.yml up -d
+```
+
+To update to the newest image:
+
+```bash
+docker compose -f docker-compose.hub.yml pull
+docker compose -f docker-compose.hub.yml up -d
+```
+
+### Option B — Build from source
+
+Clone the repo and build the image locally (useful if you want to modify the source):
 
 ```bash
 git clone <repository-url>
 cd ctxnest
 docker compose up -d --build
 ```
-
-Access the UI at `http://localhost:3000`. The compose file also publishes `3001` for the WebSocket file-watcher channel. Data is persisted in `./ctxnest-data` on the host. The container is wired with a healthcheck against `/api/health` (returns `{"status":"ok"}` once the SQLite handle is open).
 
 To change the WebSocket port, override at build time so the value is baked into the client bundle:
 
@@ -73,10 +110,15 @@ docker compose build --build-arg WS_PORT=4001
 WS_PORT=4001 docker compose up -d
 ```
 
+---
+
+Access the UI at `http://localhost:3000`. Both compose files publish `3001` for the WebSocket file-watcher channel. Data is persisted in `./ctxnest-data` on the host. The container is wired with a healthcheck against `/api/health` (returns `{"status":"ok"}` once the SQLite handle is open).
+
 To stop and remove:
 ```bash
-docker compose down            # keeps ./ctxnest-data
-docker compose down -v         # also removes volumes (does NOT delete bind-mounted data dir)
+docker compose -f docker-compose.hub.yml down   # keeps ./ctxnest-data (Hub)
+docker compose down                              # keeps ./ctxnest-data (source build)
+docker compose down -v                           # also removes volumes (does NOT delete bind-mounted data dir)
 ```
 
 ## Local Development Setup
@@ -117,7 +159,8 @@ ctxnest/
 ├── packages/
 │   └── core/       # SQLite/FTS5, git engine, file watcher (@ctxnest/core)
 ├── data/           # default runtime data (SQLite + global git vault + backups)
-├── docker-compose.yml
+├── docker-compose.yml      # build from source
+├── docker-compose.hub.yml  # pull from Docker Hub (no build)
 ├── Dockerfile
 ├── pnpm-workspace.yaml
 └── turbo.json

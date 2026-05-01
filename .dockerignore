@@ -6,4 +6,3 @@ ctxnest.db
 data
 *.log
 .env
-pnpm-lock.yaml
