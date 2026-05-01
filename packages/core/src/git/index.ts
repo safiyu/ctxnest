@@ -55,6 +55,12 @@ export async function ensureGitRepo(dir: string): Promise<void> {
   const git: SimpleGit = gitFor(dir);
   try {
     await git.init();
+    // Prevent "dubious ownership" errors in Docker/mounted volumes
+    try {
+      await git.addConfig("safe.directory", dir, true, "global");
+    } catch (e) {
+      // Ignore if global config is not writable, though it usually is in Docker.
+    }
     await git.addConfig("user.email", "ctxnest@local");
     await git.addConfig("user.name", "CtxNest");
     await git.addConfig("commit.gpgsign", "false");
@@ -79,8 +85,7 @@ export async function commitFile(
     await ensureGitRepo(repoDir);
     const git: SimpleGit = gitFor(repoDir);
     const relativePath = relative(repoDir, filePath);
-
-    await git.add(relativePath);
+    await git.add(["-f", relativePath]);
     // Path-scoped commit so concurrent activity in the repo can't get swept in.
     await git.commit(message, [relativePath], { "--no-verify": null, "--no-gpg-sign": null });
   });
@@ -381,7 +386,7 @@ async function _syncBackupLocked(
   }
 
   const backupRelativeDir = relative(dataDir, backupDir);
-  await git.add(["-A", backupRelativeDir]);
+  await git.add(["-A", "-f", backupRelativeDir]);
 
   const status = await git.status();
   if (status.staged.length > 0 || status.created.length > 0 || status.deleted.length > 0 || status.modified.length > 0) {
