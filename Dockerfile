@@ -41,6 +41,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV CTXNEST_DATA_DIR=/app/data
 ENV CTXNEST_DB_PATH=/app/data/ctxnest.db
+ENV HOSTNAME=0.0.0.0
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
