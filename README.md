@@ -28,6 +28,17 @@ Git is built for code; CtxNest is built for **context**. It gives you a **single
 
 ---
 
+## Why Local-First
+
+CtxNest runs entirely on your machine — no cloud account, no remote inference, no telemetry. That isn't a missing feature, it's the design.
+
+- **Privacy & security** — your source, notes, and clipped pages never leave your SSD. Nothing to breach, nothing to "train on", no SOC2 box to tick before you can use it.
+- **Zero latency** — disk reads and SQLite FTS5 finish in milliseconds. No upload speeds, no API timeouts, no cold-start round-trips between your editor and a hosted index.
+- **Zero infrastructure cost** — no subscriptions, no per-seat pricing, no server to keep alive. Run it on a laptop or a homelab box; it's the same binary either way.
+- **Plays nicely with the rest of your stack** — the MCP server is a stdio process your agent already knows how to spawn; the web UI is a localhost service you can put behind a Tailscale/Cloudflare tunnel if you want remote access on your terms.
+
+---
+
 ## Key Features
 
 - **Global vault & two-way sync** — single git repo for context across all projects; native pull/merge of remote changes.
@@ -388,6 +399,7 @@ You can customize CtxNest behavior using the following environment variables:
 | `CTXNEST_WS_ORIGINS` | Comma-separated allowed `Origin` headers for browser WS clients (only enforced when bound non-loopback) | unset (loopback only) |
 | `CTXNEST_WS_TOKEN` | Shared-secret token required as `?token=…` on the WS handshake (only enforced when bound non-loopback) | unset |
 | `NEXT_PUBLIC_WS_TOKEN` | Same token, baked into the client bundle at build time so the browser can supply it | unset |
+| `CTXNEST_PROJECT_TOKEN_WARN` | Soft cap (in estimated tokens) above which `register_project` and `project_map` add a `warning` to their response. Set to `0` to disable. | `100000` |
 
 The WebSocket server defaults to loopback because file paths flowing over it leak the local filesystem layout. When `CTXNEST_WS_HOST` is set to anything non-loopback (e.g. `0.0.0.0` in Docker), the server **rejects every connection by default** until you configure either `CTXNEST_WS_ORIGINS` (Origin allowlist for browsers) and/or `CTXNEST_WS_TOKEN` (shared secret, also requires `NEXT_PUBLIC_WS_TOKEN` build arg). The shipped `docker-compose.yml` wires `CTXNEST_WS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000` so the browser on the host machine works out of the box without exposing file paths to the LAN.
 

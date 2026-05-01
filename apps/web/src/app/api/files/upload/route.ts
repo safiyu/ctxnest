@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createFile, listFiles } from "@ctxnest/core";
+import { createFile, listFiles, slugify } from "@ctxnest/core";
 import { ensureDbInitialized, DATA_DIR } from "@/lib/db-init";
-import { basename, extname } from "node:path";
+import { basename, extname, dirname } from "node:path";
 
 const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_TOTAL_BYTES = Number(process.env.CTXNEST_UPLOAD_MAX_TOTAL_BYTES ?? 50 * 1024 * 1024);
+const MAX_FILES = Number(process.env.CTXNEST_UPLOAD_MAX_FILES ?? 200);
 const ALLOWED_EXT = new Set([".md", ".markdown"]);
 
 interface UploadedItem {
@@ -41,8 +43,40 @@ export async function POST(req: NextRequest) {
   const tagsRaw = form.get("tags") as string | null;
   const files = form.getAll("files").filter((v): v is File => v instanceof File);
 
+  // Validate folder shape. Without this, leading/trailing slashes or
+  // ".." segments make the dirname-suffix collision check below silently
+  // miss neighbors, allowing two uploads with the same final basename to
+  // both succeed and silently overwrite one another on disk.
+  if (folder) {
+    if (folder.includes("\0")) {
+      return NextResponse.json({ error: "folder contains null byte" }, { status: 400 });
+    }
+    if (folder.startsWith("/") || folder.startsWith("\\") || folder.endsWith("/") || folder.endsWith("\\")) {
+      return NextResponse.json({ error: "folder must not start or end with a path separator" }, { status: 400 });
+    }
+    const segs = folder.split(/[\/\\]/);
+    if (segs.some((s) => s === "" || s === "." || s === "..")) {
+      return NextResponse.json({ error: "folder must not contain empty, '.' or '..' segments" }, { status: 400 });
+    }
+  }
+
   if (files.length === 0) {
     return NextResponse.json({ error: "No files provided" }, { status: 400 });
+  }
+  if (files.length > MAX_FILES) {
+    return NextResponse.json(
+      { error: `Too many files (max ${MAX_FILES})` },
+      { status: 413 }
+    );
+  }
+  // Pre-flight total-size check using the multipart-reported sizes; cheap
+  // and avoids buffering 1000×4.9MB into memory before we notice.
+  const declaredTotal = files.reduce((sum, f) => sum + (f.size || 0), 0);
+  if (declaredTotal > MAX_TOTAL_BYTES) {
+    return NextResponse.json(
+      { error: `Total upload size ${declaredTotal} exceeds cap ${MAX_TOTAL_BYTES}` },
+      { status: 413 }
+    );
   }
 
   let projectId: number | undefined;
@@ -70,14 +104,33 @@ export async function POST(req: NextRequest) {
 
   const destination = projectId ? "project" : "knowledge";
 
+  // Collision avoidance must compare against the actual on-disk filename
+  // createFile will produce — that's `slugify(stem) + ".md"`, NOT the
+  // original upload name. Otherwise `Auth Notes.md` and `auth-notes.md`
+  // both slug to `auth-notes.md` and clobber each other while the
+  // response dishonestly reports success.
+  // Also scope to the destination directory only (same `folder`), not the
+  // entire project — `notes.md` in folder A shouldn't conflict with one in B.
   const existing = listFiles({
     dataDir: DATA_DIR,
     filters: { project_id: projectId ?? null, folder: folder || undefined },
   });
-  const existingBasenames = new Set<string>(existing.map((f) => basename(f.path)));
+  const existingBasenames = new Set<string>(
+    existing
+      .filter((f) => {
+        // listFiles' folder filter is path-segment LIKE, which can match
+        // nested subfolders. Restrict to the exact destination directory
+        // by comparing the file's dirname.
+        if (!folder) return true; // root: include all of this scope
+        const dir = dirname(f.path);
+        return dir.endsWith("/" + folder) || dir.endsWith("\\" + folder) || dir === folder;
+      })
+      .map((f) => basename(f.path))
+  );
 
   const uploaded: UploadedItem[] = [];
   const rejected: RejectedItem[] = [];
+  let runningTotal = 0;
 
   for (const file of files) {
     const original = file.name;
@@ -90,16 +143,31 @@ export async function POST(req: NextRequest) {
       rejected.push({ name: original, reason: "too_large" });
       continue;
     }
+    // Belt-and-suspenders: declared sizes can lie. Track post-read totals.
+    if (runningTotal + file.size > MAX_TOTAL_BYTES) {
+      rejected.push({ name: original, reason: "total_cap_exceeded" });
+      continue;
+    }
+    runningTotal += file.size;
 
-    const finalName = nextAvailableName(existingBasenames, original);
-    existingBasenames.add(finalName);
+    // Compute the on-disk basename createFile will actually use, then
+    // pick a non-colliding stem. We hand createFile a *title* that will
+    // re-slugify back to the same basename so what we promised matches
+    // what gets written.
+    const originalStem = original.slice(0, -ext.length);
+    const slugStem = slugify(originalStem) || "untitled";
+    const desiredBasename = `${slugStem}${ext}`;
+    const finalBasename = nextAvailableName(existingBasenames, desiredBasename);
+    existingBasenames.add(finalBasename);
 
     const content = await file.text();
-    const stem = finalName.slice(0, -extname(finalName).length);
+    // Strip the extension and trailing collision-avoidance suffix to
+    // recover a title that re-slugifies back to finalBasename's stem.
+    const finalStem = finalBasename.slice(0, -extname(finalBasename).length);
 
     try {
       const created = await createFile({
-        title: stem,
+        title: finalStem,
         content,
         destination,
         projectId,
@@ -107,7 +175,7 @@ export async function POST(req: NextRequest) {
         tags,
         dataDir: DATA_DIR,
       });
-      uploaded.push({ id: created.id, path: created.path, original_name: original, final_name: finalName });
+      uploaded.push({ id: created.id, path: created.path, original_name: original, final_name: finalBasename });
     } catch (e: any) {
       rejected.push({ name: original, reason: `create_failed: ${e?.message ?? String(e)}` });
     }

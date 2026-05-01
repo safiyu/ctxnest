@@ -102,19 +102,19 @@ export function GitWizardModal({ isOpen, onClose, onSave, currentUrl }: GitWizar
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => setMethod("ssh")}
-                className={`btn btn-md ${method === "ssh" ? "border-[#d4903a]" : ""}`}
+                className={`btn btn-md ${method === "ssh" ? "border-[var(--accent)]" : ""}`}
               >
                 SSH
               </button>
               <button
                 onClick={() => setMethod("https_pat")}
-                className={`btn btn-md ${method === "https_pat" ? "border-[#d4903a]" : ""}`}
+                className={`btn btn-md ${method === "https_pat" ? "border-[var(--accent)]" : ""}`}
               >
                 HTTPS + PAT
               </button>
               <button
                 onClick={() => setMethod("https_basic")}
-                className={`btn btn-md ${method === "https_basic" ? "border-[#d4903a]" : ""}`}
+                className={`btn btn-md ${method === "https_basic" ? "border-[var(--accent)]" : ""}`}
               >
                 HTTPS (CLI)
               </button>

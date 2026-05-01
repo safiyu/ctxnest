@@ -38,6 +38,11 @@ const _locks = new Map<string, Promise<unknown>>();
 export function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = _locks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn);
-  _locks.set(key, next.catch(() => {}));
+  const tail = next.catch(() => {});
+  _locks.set(key, tail);
+  // GC the entry once this call settles, but only if no later caller queued behind us.
+  tail.finally(() => {
+    if (_locks.get(key) === tail) _locks.delete(key);
+  });
   return next;
 }

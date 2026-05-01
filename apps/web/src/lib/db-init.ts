@@ -9,10 +9,33 @@ const REPO_ROOT = path.resolve(__dirname, "../../../..");
 const DATA_DIR = process.env.CTXNEST_DATA_DIR || path.join(REPO_ROOT, "data");
 const DB_PATH = process.env.CTXNEST_DB_PATH || path.join(DATA_DIR, "ctxnest.db");
 
+function safeMkdir(dir: string): void {
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch (e: any) {
+    if (e?.code === "EACCES" || e?.code === "EPERM" || e?.code === "EROFS") {
+      throw new Error(
+        `CtxNest cannot write to data directory: ${dir} (${e.code}). ` +
+          `Set CTXNEST_DATA_DIR to a writable path, or fix permissions on ${dir}.`
+      );
+    }
+    throw e;
+  }
+}
+
 export function ensureDbInitialized() {
   // Ensure DATA_DIR exists
   if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+    safeMkdir(DATA_DIR);
+  }
+  // Even if it exists, make sure we can actually write (mounted-ro volumes).
+  try {
+    fs.accessSync(DATA_DIR, fs.constants.W_OK);
+  } catch {
+    throw new Error(
+      `CtxNest data directory ${DATA_DIR} is not writable. ` +
+        `Set CTXNEST_DATA_DIR to a writable path, or fix permissions.`
+    );
   }
 
   // Ensure standard subdirectories exist
@@ -20,7 +43,7 @@ export function ensureDbInitialized() {
   for (const d of dirs) {
     const fullPath = path.join(DATA_DIR, d);
     if (!fs.existsSync(fullPath)) {
-      fs.mkdirSync(fullPath, { recursive: true });
+      safeMkdir(fullPath);
     }
   }
 

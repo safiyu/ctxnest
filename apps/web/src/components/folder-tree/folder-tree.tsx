@@ -36,17 +36,31 @@ interface FolderTreeProps {
 }
 
 const FileIcon = ({ className }: { className?: string }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
     className={className}
   >
     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
     <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+
+const FolderIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
   </svg>
 );
 
@@ -67,7 +81,7 @@ function FolderNodes({
         <TreeNode
           key={child.path}
           label={child.name}
-          icon="📂"
+          icon={<FolderIcon className="w-3.5 h-3.5 text-[#FF7F50]" />}
           active={selectedFolder === child.path}
           onClick={() => onSelectFolder(child.path)}
         >
@@ -124,7 +138,7 @@ export function FolderTree({
   }, [knowledgeFiles, knowledgeFolders, knowledgeBasePath]);
 
   return (
-    <div className="p-2 space-y-3">
+    <div className="p-2 space-y-3 text-[#5C3D24] [&_*:not(svg):not(path):not(polyline)]:!text-[#5C3D24] dark:text-[#F5C97A] dark:[&_*:not(svg):not(path):not(polyline)]:!text-[#F5C97A]">
       <div>
         <div className="px-2 pt-2 pb-1 text-[12px] uppercase tracking-wider text-[var(--text-secondary)]">
           Projects
@@ -136,7 +150,7 @@ export function FolderTree({
               <TreeNode
                 key={project.id}
                 label={project.name}
-                icon="📁"
+                icon={<FolderIcon className="w-3.5 h-3.5 text-[#FF7F50]" />}
                 active={isSelected && selectedFolder === null}
                 initialExpanded={isSelected}
                 onClick={() => {

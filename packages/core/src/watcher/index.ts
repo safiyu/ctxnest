@@ -25,10 +25,18 @@ export function createFileWatcher(
   const knowledgeDirs = watchPaths.map((wp) => path.join(wp, "knowledge"));
 
   const watcher = chokidar.watch(watchPaths, {
-    // backups/ is owned by syncBackup; never re-ingest its files as standalone rows.
+    // Skip the same set discoverFiles skips, plus build-output / cache /
+    // virtualenv directories that commonly contain throw-away .md files,
+    // plus the backup tree owned by syncBackup. The previous regex
+    // excluded ANY dot-prefixed segment, which silently dropped all
+    // changes under .claude/, .github/, .cursor/ — exactly where
+    // AI-context lives. Also ignore the tmp files produced by
+    // restoreVersion (`<file>.ctxnest-restore-<pid>-<ts>`) so the
+    // atomic-rename dance doesn't generate spurious add/unlink events.
     ignored: (p: string) =>
-      /(^|[\/\\])(\.|node_modules|\.git)/.test(p) ||
-      /[\/\\]backups[\/\\]/.test(p),
+      /[\/\\](node_modules|\.git|\.next|\.nuxt|\.cache|\.venv|\.tox|\.gradle|\.idea|dist|build|out|target)([\/\\]|$)/.test(p) ||
+      /[\/\\]backups[\/\\]/.test(p) ||
+      /\.ctxnest-restore-\d+-\d+$/.test(p),
     persistent: true,
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
@@ -36,7 +44,10 @@ export function createFileWatcher(
 
   watcher.on("change", (filePath) => {
     if (!filePath.endsWith(".md")) return;
-    updateFileHash(filePath);
+    // If the row was deleted (e.g. via Time-Travel restore of a previously
+    // unlinked file) and the file is back on disk, treat the change as an
+    // add so FTS gets repopulated instead of silently no-op'ing.
+    updateFileHash(filePath, knowledgeDirs);
     onEvent({ type: "change", path: filePath });
   });
 
@@ -91,8 +102,10 @@ function handleWatcherAdd(filePath: string, knowledgeDirs: string[]): void {
         ftsStmt.run(result.lastInsertRowid, title, content);
       }
     })();
-  } catch (e) {
-    // DB not initialized or read failed
+  } catch (e: any) {
+    if (e?.message !== "Database not initialized. Call createDatabase() first.") {
+      console.error(`[watcher] handleWatcherAdd failed for ${filePath}:`, e);
+    }
   }
 }
 
@@ -108,12 +121,14 @@ function handleWatcherUnlink(filePath: string): void {
         deleteFileStmt.run(file.id);
       })();
     }
-  } catch (e) {
-    // DB not initialized
+  } catch (e: any) {
+    if (e?.message !== "Database not initialized. Call createDatabase() first.") {
+      console.error(`[watcher] handleWatcherUnlink failed for ${filePath}:`, e);
+    }
   }
 }
 
-function updateFileHash(filePath: string): void {
+function updateFileHash(filePath: string, knowledgeDirs: string[] = []): void {
   try {
     const db = getDatabase();
     const content = fs.readFileSync(filePath, "utf-8");
@@ -130,8 +145,13 @@ function updateFileHash(filePath: string): void {
         deleteFtsStmt.run(file.id);
         insertFtsStmt.run(file.id, file.title, content);
       })();
+    } else {
+      // Row missing — fall back to the add path so a restored file shows up.
+      handleWatcherAdd(filePath, knowledgeDirs);
     }
-  } catch {
-    // DB not initialized or file not tracked
+  } catch (e: any) {
+    if (e?.message !== "Database not initialized. Call createDatabase() first.") {
+      console.error(`[watcher] updateFileHash failed for ${filePath}:`, e);
+    }
   }
 }

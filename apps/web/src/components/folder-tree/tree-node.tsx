@@ -45,7 +45,7 @@ export function TreeNode({
           <span className={`text-[10px] inline-block transition-transform duration-200 ${expanded ? "rotate-90" : ""}`}>▶</span>
         )}
         {icon && <span className="dark-icon">{icon}</span>}
-        <span className="truncate">{label}</span>
+        <span className="truncate lowercase first-letter:uppercase">{label}</span>
       </div>
 
       {hasChildren && expanded && <div className="ml-3 mt-0.5">{children}</div>}

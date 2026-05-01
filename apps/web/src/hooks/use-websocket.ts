@@ -14,16 +14,19 @@ export function useWebSocket(onEvent: (event: { type: string; path: string }) =>
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    let attempt = 0;
+    let stopReconnecting = false;
 
     const detach = (socket: WebSocket | null) => {
       if (!socket) return;
       socket.onmessage = null;
       socket.onclose = null;
       socket.onerror = null;
+      (socket as any).onopen = null;
     };
 
     const connect = () => {
-      if (cancelled) return;
+      if (cancelled || stopReconnecting) return;
       // Tear down any previous socket so a stale close can't double-reconnect.
       if (ws) {
         detach(ws);
@@ -31,15 +34,27 @@ export function useWebSocket(onEvent: (event: { type: string; path: string }) =>
         ws = null;
       }
       ws = new WebSocket(wsUrl);
+      ws.onopen = () => { attempt = 0; }; // reset backoff on successful handshake
       ws.onmessage = (msg) => {
         try {
           const event = JSON.parse(msg.data);
           onEventRef.current(event);
         } catch {}
       };
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         if (cancelled) return;
-        reconnectTimer = setTimeout(connect, 3000);
+        // Auth failure (server returns 1008 / 4401). Hammering achieves
+        // nothing — token won't change without reload.
+        if (ev.code === 1008 || ev.code === 4401) {
+          console.warn("[CtxNest] WS auth failed; stopping reconnect attempts");
+          stopReconnecting = true;
+          return;
+        }
+        // Exponential backoff capped at 30s with ±25% jitter.
+        attempt++;
+        const base = Math.min(30_000, 1000 * 2 ** Math.min(attempt, 5));
+        const delay = base * (0.75 + Math.random() * 0.5);
+        reconnectTimer = setTimeout(connect, delay);
       };
       // onerror is always followed by onclose; closing here would leak a socket.
       ws.onerror = () => {};

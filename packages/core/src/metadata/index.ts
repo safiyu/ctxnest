@@ -238,12 +238,26 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
   // Cap size to keep huge files from blowing up memory and the FTS index.
   const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MiB
 
-  function scanDirectory(dir: string): void {
+  // Keep this aligned with the chokidar `ignored` regex in watcher/index.ts.
+  const SKIP_DIRS = new Set([
+    "node_modules", ".git",
+    ".next", ".nuxt", ".cache", ".venv", ".tox", ".gradle", ".idea",
+    "dist", "build", "out", "target",
+  ]);
+
+  let topLevelWalkOk = false;
+  function scanDirectory(dir: string, isTopLevel = false): void {
     let entries: string[];
     try {
       entries = readdirSync(dir);
+      if (isTopLevel) topLevelWalkOk = true;
     } catch (e) {
       // EACCES, ENOENT, etc. - skip the whole subtree but keep going.
+      if (isTopLevel) {
+        // Surface this — pruning DB rows on a failed top-level walk would
+        // wipe the project's index (and tags/favorites with it).
+        throw new Error(`discoverFiles: failed to read project root ${dir}: ${(e as any)?.message ?? e}`);
+      }
       return;
     }
 
@@ -260,8 +274,8 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
       if (lst.isSymbolicLink()) continue;
 
       if (lst.isDirectory()) {
-        if (entry === "node_modules" || entry === ".git") continue;
-        scanDirectory(fullPath);
+        if (SKIP_DIRS.has(entry)) continue;
+        scanDirectory(fullPath, false);
       } else if (lst.isFile() && extname(entry) === ".md") {
         if (lst.size > MAX_FILE_BYTES) {
           console.warn(`discoverFiles: skipping ${fullPath} (size ${lst.size} > ${MAX_FILE_BYTES})`);
@@ -301,11 +315,13 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
     }
   }
 
-  scanDirectory(projectPath);
+  scanDirectory(projectPath, true);
 
-  // Prune files that are in the DB but were not found on disk
+  // Prune files that are in the DB but were not found on disk.
+  // Skip pruning if the top-level walk failed — a transient EACCES would
+  // otherwise wipe the project's index (along with tags/favorites).
   const missingPaths = [...existingPaths].filter(p => !foundPaths.has(p));
-  if (missingPaths.length > 0) {
+  if (missingPaths.length > 0 && topLevelWalkOk) {
     const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
     const deleteFileStmt = db.prepare("DELETE FROM files WHERE id = ?");
 

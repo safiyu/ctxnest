@@ -23,6 +23,15 @@ export async function POST(req: NextRequest) {
   ) {
     return NextResponse.json({ error: "projectId must be a non-negative integer" }, { status: 400 });
   }
+  // Reject obvious traversal before passing to filesystem code; createFolder
+  // calls assertPathInside as a backstop.
+  if (
+    name.includes("\0") ||
+    name.startsWith("/") || name.startsWith("\\") ||
+    name.split(/[/\\]/).some((seg) => seg === "..")
+  ) {
+    return NextResponse.json({ error: "Invalid folder name" }, { status: 400 });
+  }
 
   const db = getDatabase();
   let projectPath: string;
@@ -103,19 +112,14 @@ export async function DELETE(req: NextRequest) {
       // KB folder — safe to delete from disk.
       deleteFolder(projectPath, folderName);
     } else {
-      // Project folder — only un-index. Never touch the source repo.
-      const { resolve, sep } = await import("node:path");
-      const baseResolved = resolve(projectPath);
-      const target = resolve(baseResolved, folderName);
-      if (target !== baseResolved && !target.startsWith(baseResolved + sep)) {
-        return NextResponse.json({ error: "Invalid folder name" }, { status: 400 });
-      }
-      const folderPrefix = target.endsWith(sep) ? target : target + sep;
-      const escaped = folderPrefix.replace(/[\\%_]/g, (ch) => "\\" + ch);
-      const db = getDatabase();
-      db.prepare("DELETE FROM files WHERE project_id = ? AND path LIKE ? ESCAPE '\\'").run(
-        projectIdNum,
-        `${escaped}%`
+      // Project folder — refuse. Un-indexing alone was a no-op: the
+      // watcher (or the next "Scan for New Files") would re-ingest every
+      // .md under the folder seconds later, making the deletion appear
+      // to succeed and then silently revert. Until we have a persistent
+      // ignore-list, the only honest answer is to disallow the action.
+      return NextResponse.json(
+        { error: "Cannot delete folders inside an external project. Use 'Unregister' to remove the whole project, or remove files from disk in your editor." },
+        { status: 400 }
       );
     }
 

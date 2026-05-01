@@ -22,6 +22,8 @@ interface File {
   project_id?: number;
   size_bytes?: number | null;
   est_tokens?: number | null;
+  favorite?: boolean;
+  tags?: string[] | null;
 }
 
 type SortBy = "name" | "updated_at" | "created_at";
@@ -75,7 +77,7 @@ export function FileList({
   const newMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setSelectedIds(new Set()); }, [selectedFolder, selectedProject?.id, selectedSection, filter]);
+  useEffect(() => { setSelectedIds(new Set()); }, [selectedFolder, selectedProject?.id, selectedSection, filter, sortBy]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -93,25 +95,41 @@ export function FileList({
   const filteredAndSorted = useMemo(() => {
     let result = [...files];
 
-    // Branch on selectedSection first. Inferring mode from path-data
-    // presence races on hard refresh and falsely shows "folder is empty".
-    const isInFolder = (filePath: string, folderBase: string) => {
-      if (!filePath.startsWith(folderBase)) return false;
-      const rel = filePath.slice(folderBase.length).replace(/^[/\\]+/, "");
-      return rel.length > 0 && !rel.includes("/") && !rel.includes("\\");
+    // Normalize separators and handle nulls safely to prevent UI crashes.
+    const norm = (p: string | null | undefined) => (p || "").replace(/\\/g, "/").replace(/\/+$/, "");
+    
+    const isInFolder = (filePath: string | null | undefined, folderBase: string | null | undefined) => {
+      if (!filePath || !folderBase) return false;
+      const f = norm(filePath);
+      const b = norm(folderBase) + "/";
+      if (!f.startsWith(b)) return false;
+      const rel = f.slice(b.length);
+      return rel.length > 0 && !rel.includes("/");
+    };
+
+    const isUnderFolder = (filePath: string | null | undefined, folderBase: string | null | undefined) => {
+      if (!filePath || !folderBase) return false;
+      const f = norm(filePath);
+      const b = norm(folderBase) + "/";
+      return f.startsWith(b);
     };
 
     if (selectedSection === "projects") {
       if (selectedProject) {
         const base = basePath || selectedProject.path;
         if (base) {
-          const normalizedBase = base.endsWith("/") || base.endsWith("\\") ? base : base + "/";
+          const normalizedBase = norm(base) + "/";
           if (selectedFolder) {
-            const folderPrefix = normalizedBase + (selectedFolder.endsWith("/") || selectedFolder.endsWith("\\") ? selectedFolder : selectedFolder + "/");
-            result = result.filter((f) => isInFolder(f.path, folderPrefix));
+            // Recursive: show every file under the selected folder, not
+            // just direct children — otherwise picking a folder with only
+            // subfolders looks empty.
+            const folderPrefix = normalizedBase + norm(selectedFolder);
+            result = result.filter((f) => isUnderFolder(f.path, folderPrefix));
           } else {
-            // Show only files in the root of the project
-            result = result.filter((f) => f.project_id === selectedProject.id && isInFolder(f.path, normalizedBase));
+            // No folder selected: show ALL files in the project (recursive),
+            // not just files directly at the project root — many projects
+            // keep all their context files in subfolders (e.g. `.claude/`).
+            result = result.filter((f) => f.project_id === selectedProject.id);
           }
         } else {
           result = result.filter((f) => f.project_id === selectedProject.id);
@@ -122,13 +140,17 @@ export function FileList({
     } else if (selectedSection === "knowledge") {
       result = result.filter((f) => !f.project_id);
       if (basePath) {
-        const normalizedBase = basePath.endsWith("/") || basePath.endsWith("\\") ? basePath : basePath + "/";
+        const normalizedBase = norm(basePath) + "/";
         if (selectedFolder) {
-          const folderPrefix = normalizedBase + (selectedFolder.endsWith("/") || selectedFolder.endsWith("\\") ? selectedFolder : selectedFolder + "/");
-          result = result.filter((f) => isInFolder(f.path, folderPrefix));
+          // Recursive — same reasoning as the projects branch above.
+          const folderPrefix = normalizedBase + norm(selectedFolder);
+          result = result.filter((f) => isUnderFolder(f.path, folderPrefix));
         } else {
-          // Show only root knowledge files
-          result = result.filter((f) => isInFolder(f.path, normalizedBase));
+          // KB root: show all KB files (recursive). The folder tree
+          // shows nested files at every depth — middle pane should match
+          // it. The previous "direct children only" comment was wrong:
+          // KB files all have !project_id, no cross-project leakage risk.
+          // Already filtered by !project_id above.
         }
       }
     } else {
@@ -279,13 +301,20 @@ export function FileList({
       </div>
       {files.length > 10 && <FileListFilter value={filter} onChange={setFilter} />}
 
+      {(() => {
+        // Intersect selection with the visible set so the badge count and
+        // download URL never include files no longer shown after a filter
+        // or sort change.
+        const visibleIds = new Set(filteredAndSorted.map((f) => f.id));
+        const visibleSelected = [...selectedIds].filter((id) => visibleIds.has(id));
+        return (
       <div className="flex-1 overflow-y-auto">
-        {selectMode && selectedIds.size > 0 && (
+        {selectMode && visibleSelected.length > 0 && (
           <div className="sticky top-0 z-10 px-3 py-2 bg-[var(--bg-secondary)] border-b border-amber-accent/40 flex items-center justify-between text-[11px]">
-            <span>{selectedIds.size} selected</span>
+            <span>{visibleSelected.length} selected</span>
             <div className="flex items-center gap-2">
               <a
-                href={`/api/export/zip?file_ids=${[...selectedIds].join(",")}`}
+                href={`/api/export/zip?file_ids=${visibleSelected.join(",")}`}
                 download
                 className="px-2 py-1 bg-amber-accent text-black font-bold rounded"
               >
@@ -311,6 +340,8 @@ export function FileList({
               active={file.id === selectedFileId}
               onClick={() => onSelectFile(file.id)}
               estTokens={file.est_tokens}
+              favorite={file.favorite}
+              tags={file.tags ?? undefined}
               selectMode={selectMode}
               selected={selectedIds.has(file.id)}
               onToggleSelect={() => {
@@ -367,6 +398,8 @@ export function FileList({
           </div>
         )}
       </div>
+        );
+      })()}
       <UploadFilesDialog
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}

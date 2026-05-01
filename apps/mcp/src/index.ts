@@ -38,6 +38,26 @@ import { statSync, openSync, readSync, closeSync } from "node:fs";
 const dataDir = process.env.CTXNEST_DATA_DIR || join(process.cwd(), "data");
 const dbPath = process.env.CTXNEST_DB_PATH || join(dataDir, "ctxnest.db");
 
+// Soft cap that surfaces a warning to the agent when a project / map
+// exceeds the configured budget. No data is dropped — the response still
+// carries the full payload, but the warning gives the agent a chance to
+// add ignore patterns or scope the query before piping the result into a
+// downstream LLM.
+const PROJECT_TOKEN_WARN_THRESHOLD = Number(
+  process.env.CTXNEST_PROJECT_TOKEN_WARN ?? 100_000
+);
+function tokenWarning(total: number): string | null {
+  if (!Number.isFinite(PROJECT_TOKEN_WARN_THRESHOLD) || PROJECT_TOKEN_WARN_THRESHOLD <= 0) return null;
+  if (total <= PROJECT_TOKEN_WARN_THRESHOLD) return null;
+  return (
+    `Project content totals ~${total.toLocaleString()} tokens, above the ` +
+    `${PROJECT_TOKEN_WARN_THRESHOLD.toLocaleString()}-token soft cap. ` +
+    `Consider narrowing scope (folder/tag filters), adding ignore patterns ` +
+    `(e.g. node_modules-style build/cache dirs), or using bundle_search with a ` +
+    `max_tokens budget instead of pulling the full set into one prompt.`
+  );
+}
+
 function estimateTokensFromFile(filePath: string, sizeBytes: number): number {
   if (sizeBytes <= 0) return 1;
   const sampleSize = Math.min(4096, sizeBytes);
@@ -160,7 +180,7 @@ server.tool(
   "list_files",
   "List files with optional filters. Each result is annotated inline with `tags` (string[]), `est_tokens`, and `size_bytes` so you can decide what to read without an N+1 round-trip per file.",
   {
-    project_id: z.number().optional().describe("Filter by project ID"),
+    project_id: z.number().nullable().optional().describe("Filter by project ID. Pass null to list ONLY Knowledge Base files (project_id IS NULL)."),
     tag: z.string().optional().describe("Filter by tag name"),
     favorite: z.boolean().optional().describe("Filter by favorite status"),
     folder: z.string().optional().describe("Filter by folder path"),
@@ -170,6 +190,7 @@ server.tool(
   },
   async ({ project_id, tag, favorite, folder, untagged, limit, offset }) => {
     const filters: any = {};
+    // null = KB-only (project_id IS NULL); undefined = no filter; number = exact match
     if (project_id !== undefined) filters.project_id = project_id;
     if (tag !== undefined) filters.tag = tag;
     if (favorite !== undefined) filters.favorite = favorite;
@@ -192,7 +213,7 @@ server.tool(
   "Search files using full-text search. Each match is annotated inline with `tags` (string[]), `est_tokens`, and `size_bytes` so you can pick which results to read without a follow-up call per file.",
   {
     query: z.string().describe("Search query"),
-    project_id: z.number().optional().describe("Filter by project ID"),
+    project_id: z.number().nullable().optional().describe("Filter by project ID. Pass null to search ONLY Knowledge Base files."),
     tags: z.array(z.string()).optional().describe("Filter by tags (all must match)"),
     favorite: z.boolean().optional().describe("Filter by favorite status"),
   },
@@ -216,7 +237,7 @@ server.tool(
   "Run a full-text search and return the matched files concatenated into a prompt-ready bundle. Use instead of search + multiple read_file calls when you need several related files for context. Output is capped by max_tokens (stops at the first file that would exceed).",
   {
     query: z.string().describe("Full-text search query"),
-    project_id: z.number().optional().describe("Filter by project ID"),
+    project_id: z.number().nullable().optional().describe("Filter by project ID. Pass null to bundle ONLY Knowledge Base files."),
     tags: z.array(z.string()).optional().describe("Filter by tags (all must match)"),
     favorite: z.boolean().optional().describe("Filter by favorite status"),
     format: z.enum(["xml", "markdown"]).default("xml")
@@ -323,9 +344,21 @@ server.tool(
     }
     try {
       const project = registerProject(name, path, description);
-      const discoveredFiles = discoverFiles(project.id, dataDir);
+      // discoverFiles now throws when the project root is unreadable. Catch
+      // so registration still succeeds with a soft warning — mirrors the
+      // web POST /api/projects route.
+      let discoveredFiles: any[] = [];
+      let scanWarning: string | null = null;
+      try {
+        discoveredFiles = discoverFiles(project.id, dataDir);
+      } catch (e: any) {
+        scanWarning = `Initial scan failed: ${e?.message ?? e}`;
+        console.warn(`registerProject succeeded but discoverFiles failed:`, e);
+      }
       const annotated = discoveredFiles.map(annotateTokens);
       const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
+      const sizeWarning = tokenWarning(total_est_tokens);
+      const warnings = [scanWarning, sizeWarning].filter((w): w is string => !!w);
       return {
         content: [
           {
@@ -336,6 +369,7 @@ server.tool(
                 discovered_files_count: annotated.length,
                 total_est_tokens,
                 discovered_files: annotated,
+                ...(warnings.length ? { warnings } : {}),
               },
               null,
               2
@@ -603,6 +637,7 @@ server.tool(
     if (show_titles !== undefined) opts.show_titles = show_titles;
     if (max_lines !== undefined) opts.max_lines = max_lines;
     const result = projectMap(opts);
+    const warning = tokenWarning(result.est_tokens);
     return {
       content: [
         {
@@ -612,6 +647,7 @@ server.tool(
               stats: result.stats,
               est_tokens: result.est_tokens,
               outline: result.outline,
+              ...(warning ? { warning } : {}),
             },
             null,
             2

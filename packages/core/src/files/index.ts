@@ -57,6 +57,7 @@ export interface CreateFileOptions {
 
 export interface FileRecordWithContent extends FileRecord {
   content: string;
+  git_warning?: string;
 }
 
 export interface ListFilesOptions {
@@ -135,6 +136,17 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   }
 
   mkdirSync(dirname(filePath), { recursive: true });
+  // Stash pre-existing content (if any) so we can fully restore on a
+  // DB-txn failure — otherwise writeFileSync below would leave the
+  // caller's content sitting under a row that points elsewhere.
+  let preExistingContent: Buffer | null = null;
+  if (existsSync(filePath)) {
+    try {
+      preExistingContent = readFileSync(filePath);
+    } catch (e) {
+      console.warn("createFile: failed to stash pre-existing content for rollback:", e);
+    }
+  }
   writeFileSync(filePath, content, "utf8");
   const contentHash = computeHash(content);
 
@@ -149,25 +161,40 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
   const linkTagStmt = db.prepare("INSERT INTO file_tags (file_id, tag_id) VALUES (?, ?)");
   const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
 
-  const fileId: number = db.transaction(() => {
-    const result = insertStmt.run(filePath, title, projectId || null, storageType, sourcePath || null, contentHash);
-    const id = Number(result.lastInsertRowid);
+  let fileId: number;
+  try {
+    fileId = db.transaction(() => {
+      const result = insertStmt.run(filePath, title, projectId || null, storageType, sourcePath || null, contentHash);
+      const id = Number(result.lastInsertRowid);
 
-    if (tags.length > 0) {
-      for (const tagName of tags) {
-        insertTagStmt.run(tagName);
-        const tag = getTagStmt.get(tagName) as { id: number };
-        linkTagStmt.run(id, tag.id);
+      if (tags.length > 0) {
+        for (const tagName of tags) {
+          insertTagStmt.run(tagName);
+          const tag = getTagStmt.get(tagName) as { id: number };
+          linkTagStmt.run(id, tag.id);
+        }
       }
-    }
 
-    ftsStmt.run(id, title, content);
-    return id;
-  })();
+      ftsStmt.run(id, title, content);
+      return id;
+    })();
+  } catch (dbError) {
+    // Roll back the file write so the watcher doesn't adopt the orphan
+    // as an untitled record (losing the user-supplied title and tags).
+    if (preExistingContent !== null) {
+      try { writeFileSync(filePath, preExistingContent); } catch (e) {
+        console.error("createFile: failed to restore pre-existing content after DB error:", e);
+      }
+    } else {
+      try { unlinkSync(filePath); } catch {}
+    }
+    throw dbError;
+  }
 
   const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
 
   // Reference files version against their project's own git, not the data dir.
+  let gitWarning: string | undefined;
   try {
     let repoDir = dataDir;
     if (storageType === "reference" && projectId) {
@@ -176,12 +203,14 @@ export async function createFile(opts: CreateFileOptions): Promise<FileRecordWit
     }
     await commitFile(repoDir, filePath, `Create context file: ${title}`);
   } catch (error) {
+    gitWarning = error instanceof Error ? error.message : String(error);
     console.warn("Git auto-commit failed during creation:", error);
   }
 
   return {
     ...fileRecord,
     content,
+    ...(gitWarning ? { git_warning: gitWarning } : {}),
   };
 }
 
@@ -233,6 +262,7 @@ export async function updateFile(id: number, content: string, dataDir: string): 
     insertFtsStmt.run(id, fileRecord.title, content);
   })();
 
+  let gitWarning: string | undefined;
   try {
     let repoDir = dataDir;
     if (fileRecord.storage_type === "reference" && fileRecord.project_id) {
@@ -241,6 +271,7 @@ export async function updateFile(id: number, content: string, dataDir: string): 
     }
     await commitFile(repoDir, fileRecord.path, `Update context file: ${fileRecord.title}`);
   } catch (error) {
+    gitWarning = error instanceof Error ? error.message : String(error);
     console.warn("Git auto-commit failed during update:", error);
   }
 
@@ -248,6 +279,7 @@ export async function updateFile(id: number, content: string, dataDir: string): 
   return {
     ...updatedRecord,
     content,
+    ...(gitWarning ? { git_warning: gitWarning } : {}),
   };
 }
 
@@ -262,6 +294,10 @@ export function deleteFile(id: number, dataDir?: string): void {
   const file = db.prepare("SELECT path, project_id FROM files WHERE id = ?").get(id) as
     | { path: string; project_id: number | null }
     | undefined;
+
+  if (!file) {
+    throw new Error(`File not found: ${id}`);
+  }
 
   if (file && dataDir) {
     const knowledgeRoot = resolve(dataDir, "knowledge");

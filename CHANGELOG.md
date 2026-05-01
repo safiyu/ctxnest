@@ -1,21 +1,31 @@
 # Changelog
 
+## 4.0.0 (2026-05-01)
+
+### Docker & Git Stability
+- **"Dubious Ownership" Resolution** — Added a system-level Git configuration to the Docker image that automatically trusts mounted project volumes. This eliminates the common `fatal: detected dubious ownership` error when running CtxNest in Docker on Linux.
+- **Forced Sync for Ignored Files** — Synchronization now uses the force flag (`git add -f`) to ensure that critical context files (like those in a `scratch/` folder) are correctly backed up even if they are covered by local `.gitignore` rules.
+- **Idempotent Repo Initialization** — The Git engine now automatically registers directories as safe during initialization, ensuring a smooth first-run experience in containerized environments.
+
+### UI & UX Enhancements
+- **Non-Recursive Folder Explorer** — Redesigned the File List filtering to match standard file explorer behavior. Clicking a folder now shows only the files directly inside it, while clicking the project root shows only the root files.
+- **Premium Error Reporting** — Replaced native browser alerts with a custom, high-fidelity `GitErrorDialog`. Git failures now appear in a sleek modal that explains why a commit failed and how it affects history.
+- **Robust Path Normalization** — Hardened the client-side path logic to handle cross-platform separators (Windows backslashes vs. Linux forward-slashes) and prevent UI crashes when metadata is incomplete.
+
+### New Features & Tools
+- **File Restoration** — Added a new `restore_file` MCP tool. Agents can now programmatically revert files to any previous version using hashes retrieved from the Git history.
+- **Automatic Pruning** — Improved project synchronization to automatically prune stale file records from the database if the corresponding files are deleted from the local filesystem.
+
 ## 3.1.0 (2026-04-30)
 
-### Agent-First MCP Surface
-- **`whats_new` tool**: List files created or modified since a checkpoint (ISO timestamp or relative duration like `"1h"`, `"7d"`, `"2w"`). Each entry is annotated with `change: "created" | "modified"`, inline tags, and `est_tokens`. Lets a fresh agent session catch up on changes without re-reading the entire knowledge base.
-- **`project_map` tool**: Single call returns a compact, indented outline of the entire knowledge base — folders, file titles, tags, file IDs — typically 5× denser than the equivalent `list_files` JSON. Reports `est_tokens` so the caller can budget context before passing it along. Designed to replace the "list_files then mentally group by folder" pattern.
-- **Inline tags + token budget on `list_files` and `search`**: Both tools now return `tags: string[]`, `est_tokens`, and `size_bytes` per record. Eliminates the N+1 round-trip of calling `read_file` just to inspect tags or size before deciding which file is worth pulling.
+### Smarter Agent Sessions
+- **Catch up on what changed** — agents can ask "what's new since yesterday?" and get back just the files added or edited in that window. No more re-reading the whole knowledge base at the start of every session.
+- **One-shot project map** — a single call returns a clean, indented outline of your entire knowledge base (folders, titles, tags). Roughly 5× more compact than listing files one by one, so agents see the big picture before deciding what to open.
+- **Tags and size shown upfront** — file listings and search results now include tags and an estimated token count inline, so agents pick the right file without opening each one first.
 
-### Web Clipping — Auth-Wall Detection
-- **`AUTH_REQUIRED` error code on `clip_url`**: Previously, clipping a Confluence/Notion/SSO-walled page silently produced a useless clip of the login page. The clipper now detects three auth signals and returns `{auth_required: true, login_url, signal, www_authenticate?}` instead:
-  - HTTP `401` / `403` (with `WWW-Authenticate` surfaced when present)
-  - Redirect to a login URL (`/login`, `/signin`, `/sso/`, `/oauth/`, `?redirect_to=…`, etc.)
-  - 200-OK login page body (sniffs `<input type=password>`, Atlassian `os_username`, Spring `j_username`, login-action forms)
-- **Headers passthrough**: `clip_url` accepts an optional `headers: Record<string,string>` so agents can retry behind auth walls with `Cookie` or `Authorization` headers. Same param exposed on the web API (`POST /api/clip`).
-
-### Core
-- **`getTagsForFiles(ids[])`**: New shared helper for bulk tag fetch in a single SQL query. Used internally by `list_files`, `search`, `whats_new`, and `project_map` to avoid N+1 patterns. Exported from `@ctxnest/core`.
+### Smarter Web Clipping
+- **Login-wall detection** — clipping a Confluence, Notion, or SSO-protected page used to silently save the login screen. Now CtxNest spots the wall and tells you which page asked for auth, so you can paste in a session cookie and try again.
+- **Bring your own credentials** — the clipper accepts cookies and bearer tokens, so you can clip pages behind your own logins without exposing them to a third party.
 
 ## 3.0.0 (2026-04-30)
 

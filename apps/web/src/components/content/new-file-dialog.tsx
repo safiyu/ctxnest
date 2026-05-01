@@ -101,7 +101,7 @@ export function NewFileDialog({ open, onClose, onCreate, currentProjectId, avail
                 <button
                   type="button"
                   onClick={() => setDestination("knowledge")}
-                  className={`btn btn-sm flex-1 ${destination === "knowledge" ? "border-[#d4903a]" : ""}`}
+                  className={`btn btn-sm flex-1 ${destination === "knowledge" ? "border-[var(--accent)]" : ""}`}
                 >
                   KNOWLEDGE BASE
                 </button>
@@ -109,7 +109,7 @@ export function NewFileDialog({ open, onClose, onCreate, currentProjectId, avail
                   <button
                     type="button"
                     onClick={() => setDestination("project")}
-                    className={`btn btn-sm flex-1 ${destination === "project" ? "border-[#d4903a]" : ""}`}
+                    className={`btn btn-sm flex-1 ${destination === "project" ? "border-[var(--accent)]" : ""}`}
                   >
                     PROJECT ROOT
                   </button>

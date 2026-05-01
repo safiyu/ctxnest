@@ -10,6 +10,8 @@ interface FileItemProps {
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  favorite?: boolean;
+  tags?: string[];
 }
 
 function formatTokens(n: number): string {
@@ -52,7 +54,7 @@ const DownloadIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export function FileItem({ id, title, updatedAt, active, onClick, estTokens, selectMode, selected, onToggleSelect }: FileItemProps) {
+export function FileItem({ id, title, updatedAt, active, onClick, estTokens, selectMode, selected, onToggleSelect, favorite, tags }: FileItemProps) {
   const handleRowClick = (e: React.MouseEvent) => {
     if (selectMode) {
       e.preventDefault();
@@ -89,12 +91,27 @@ export function FileItem({ id, title, updatedAt, active, onClick, estTokens, sel
           <FileIcon className="w-4 h-4 mt-1 text-amber-accent shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold truncate text-[#0F172A] dark:text-[#F8F9FA]">
-            {title}
+          <div className="text-sm font-semibold truncate text-[#0F172A] dark:text-[#F8F9FA] flex items-center gap-1.5">
+            {favorite && (
+              <span className="text-amber-accent shrink-0" title="Favorite" aria-label="Favorite">★</span>
+            )}
+            <span className="truncate">{title}</span>
           </div>
-          <div className="text-[11px] text-[#475569] dark:text-[#94A3B8] mt-1">
-            {formatTimeAgo(updatedAt)}
-            {typeof estTokens === "number" && estTokens > 0 ? ` · ~${formatTokens(estTokens)} tok` : ""}
+          <div className="text-[11px] text-[#475569] dark:text-[#94A3B8] mt-1 flex flex-wrap items-center gap-1.5">
+            <span>{formatTimeAgo(updatedAt)}</span>
+            {typeof estTokens === "number" && estTokens > 0 && (
+              <span>· ~{formatTokens(estTokens)} tok</span>
+            )}
+            {tags && tags.length > 0 && (
+              <span className="flex flex-wrap gap-1">
+                {tags.slice(0, 3).map((t) => (
+                  <span key={t} className="px-1.5 rounded bg-amber-accent/10 border border-amber-accent/20 text-[10px]">
+                    {t}
+                  </span>
+                ))}
+                {tags.length > 3 && <span className="text-[10px] opacity-60">+{tags.length - 3}</span>}
+              </span>
+            )}
           </div>
         </div>
         {!selectMode && (

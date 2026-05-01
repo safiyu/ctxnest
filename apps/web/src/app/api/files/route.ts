@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { statSync, openSync, readSync, closeSync } from "node:fs";
-import { listFiles, createFile } from "@ctxnest/core";
+import { listFiles, createFile, getTagsForFiles, getDatabase } from "@ctxnest/core";
 import type { FileFilters } from "@ctxnest/core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 
@@ -54,6 +54,19 @@ export async function GET(req: NextRequest) {
 
   const files = listFiles({ dataDir: DATA_DIR, filters });
 
+  // Bulk-fetch tags + favorites in one shot to avoid N+1 queries.
+  const ids = files.map((f) => f.id);
+  const tagMap = getTagsForFiles(ids);
+  const db = getDatabase();
+  const favSet = new Set<number>();
+  if (ids.length > 0) {
+    const placeholders = ids.map(() => "?").join(",");
+    const favRows = db
+      .prepare(`SELECT file_id FROM favorites WHERE file_id IN (${placeholders})`)
+      .all(...ids) as { file_id: number }[];
+    for (const r of favRows) favSet.add(r.file_id);
+  }
+
   const annotated = files.map((f) => {
     let size_bytes: number | null = null;
     let est_tokens: number | null = null;
@@ -61,7 +74,13 @@ export async function GET(req: NextRequest) {
       size_bytes = statSync(f.path).size;
       est_tokens = estimateTokens(f.path, size_bytes);
     } catch {}
-    return { ...f, size_bytes, est_tokens };
+    return {
+      ...f,
+      size_bytes,
+      est_tokens,
+      tags: tagMap.get(f.id) ?? [],
+      favorite: favSet.has(f.id),
+    };
   });
 
   return NextResponse.json(annotated);
@@ -69,7 +88,20 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   ensureDbInitialized();
-  const body = await req.json();
-  const file = await createFile({ ...body, dataDir: DATA_DIR });
-  return NextResponse.json(file, { status: 201 });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body must be JSON" }, { status: 400 });
+  }
+  try {
+    const file = await createFile({ ...(body as object), dataDir: DATA_DIR } as any);
+    return NextResponse.json(file, { status: 201 });
+  } catch (error: any) {
+    console.error("createFile failed:", error);
+    return NextResponse.json(
+      { error: error?.message ?? "Failed to create file" },
+      { status: 400 }
+    );
+  }
 }

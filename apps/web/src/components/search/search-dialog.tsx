@@ -5,13 +5,15 @@ import { useEffect, useState, useRef } from "react";
 interface SearchDialogProps {
   open: boolean;
   onClose: () => void;
-  onSelectFile: (id: number) => void;
+  onSelectFile: (result: SearchResult) => void;
 }
 
-interface SearchResult {
+export interface SearchResult {
   id: number;
   title: string;
   storage_type: string;
+  path: string;
+  project_id: number | null;
 }
 
 export function SearchDialog({ open, onClose, onSelectFile }: SearchDialogProps) {
@@ -81,12 +83,12 @@ export function SearchDialog({ open, onClose, onSelectFile }: SearchDialogProps)
       setSelectedIdx((prev) => Math.max(prev - 1, 0));
     } else if (e.key === "Enter" && results.length > 0) {
       e.preventDefault();
-      onSelectFile(results[selectedIdx].id);
+      onSelectFile(results[selectedIdx]);
     }
   };
 
-  const handleSelectResult = (id: number) => {
-    onSelectFile(id);
+  const handleSelectResult = (result: SearchResult) => {
+    onSelectFile(result);
   };
 
   const handleOverlayClick = (e: React.MouseEvent) => {
@@ -138,7 +140,7 @@ export function SearchDialog({ open, onClose, onSelectFile }: SearchDialogProps)
               {results.map((result, idx) => (
                 <button
                   key={result.id}
-                  onClick={() => handleSelectResult(result.id)}
+                  onClick={() => handleSelectResult(result)}
                   className={`w-full px-4 py-3 text-left border-b border-[var(--border-color)] last:border-b-0 transition-colors ${
                     idx === selectedIdx
                       ? "bg-amber-accent/20"

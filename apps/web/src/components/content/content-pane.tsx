@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { MarkdownViewer } from "./markdown-viewer";
 import { MarkdownEditor } from "./markdown-editor";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { GitErrorDialog } from "./git-error-dialog";
 
 const TrashIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -19,12 +20,19 @@ interface File {
   title: string;
   content: string;
   storage_type: "db" | "git";
-  tags: string[] | null;
+  tags: string[];
   favorite: boolean;
   folder: string | null;
   created_at: string;
   updated_at: string;
+  git_warning?: string;
 }
+
+const StarIcon = ({ filled, className }: { filled: boolean; className?: string }) => (
+  <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
 
 interface ContentPaneProps {
   fileId: number | null;
@@ -42,6 +50,13 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [gitErrorOpen, setGitErrorOpen] = useState(false);
+  const [gitErrorMessage, setGitErrorMessage] = useState("");
+
+  // Mirrors fileId so async handlers can detect a navigation that
+  // happened mid-request and decline to apply stale results.
+  const fileIdRef = useRef<number | null>(fileId);
+  useEffect(() => { fileIdRef.current = file?.id ?? null; }, [file?.id]);
 
   useEffect(() => {
     if (fileId === null) {
@@ -118,10 +133,14 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
 
   const handleSave = async () => {
     if (!file) return;
+    // Capture the id at handler entry — if the user navigates to a
+    // different file mid-save, the response from the OLD file's PUT must
+    // not clobber the NEW file's content state.
+    const savingFileId = file.id;
 
     try {
       setSaving(true);
-      const response = await fetch(`/api/files/${file.id}`, {
+      const response = await fetch(`/api/files/${savingFileId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -133,13 +152,24 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
 
       if (response.ok) {
         const updatedFile = await response.json();
+        // Stale-response guard: only apply if we're still on the same file.
+        if (fileIdRef.current !== savingFileId) {
+          if (updatedFile.git_warning) {
+            console.warn(`[ctxnest] git_warning for stale file ${savingFileId}:`, updatedFile.git_warning);
+          }
+          return;
+        }
         setFile(updatedFile);
         setEditing(false);
+        if (updatedFile.git_warning) {
+          setGitErrorMessage(updatedFile.git_warning);
+          setGitErrorOpen(true);
+        }
       }
     } catch (error) {
       console.error("Failed to save file:", error);
     } finally {
-      setSaving(false);
+      if (fileIdRef.current === savingFileId) setSaving(false);
     }
   };
 
@@ -220,7 +250,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
               key={mode}
               onClick={onTabClick}
               className={`btn btn-sm -mb-px py-2 border-b-2 transition-colors ${
-                active ? "border-[#d4903a]" : ""
+                active ? "border-[var(--accent)]" : ""
               }`}
             >
               {mode[0].toUpperCase() + mode.slice(1)}
@@ -257,6 +287,34 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
                 </>
               )}
               <button
+                onClick={async () => {
+                  if (!file) return;
+                  const next = !file.favorite;
+                  // Optimistic update.
+                  setFile({ ...file, favorite: next });
+                  try {
+                    const res = await fetch(`/api/files/${file.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ favorite: next }),
+                    });
+                    if (!res.ok) throw new Error("PATCH failed");
+                  } catch (e) {
+                    // Roll back optimistic toggle.
+                    setFile({ ...file, favorite: !next });
+                    console.error("Failed to toggle favorite:", e);
+                  }
+                }}
+                className="btn btn-md"
+                aria-label={file?.favorite ? "Unfavorite" : "Favorite"}
+                title={file?.favorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                <StarIcon
+                  filled={!!file?.favorite}
+                  className={`w-4 h-4 ${file?.favorite ? "text-amber-accent" : "opacity-60"}`}
+                />
+              </button>
+              <button
                 onClick={() => setDeleteDialogOpen(true)}
                 className="btn btn-md btn-destructive"
                 aria-label="Delete file"
@@ -269,6 +327,72 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
           )}
         </div>
       </div>
+
+      {!editing && !viewHistory && (
+        <div className="px-4 py-2 border-b border-[var(--border)] flex flex-wrap items-center gap-2 text-[12px]">
+          <span className="text-[var(--text-secondary)] uppercase tracking-wider text-[10px] font-bold">Tags</span>
+          {(file?.tags ?? []).map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-accent/10 border border-amber-accent/30 text-[var(--text-primary)]"
+            >
+              {t}
+              <button
+                aria-label={`Remove tag ${t}`}
+                title={`Remove tag ${t}`}
+                onClick={async () => {
+                  if (!file) return;
+                  const next = file.tags.filter((x) => x !== t);
+                  setFile({ ...file, tags: next });
+                  try {
+                    const res = await fetch(`/api/files/${file.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ tags: next }),
+                    });
+                    if (!res.ok) throw new Error("PATCH failed");
+                  } catch (e) {
+                    setFile({ ...file, tags: file.tags });
+                    console.error("Failed to remove tag:", e);
+                  }
+                }}
+                className="text-[var(--text-secondary)] hover:text-red-500"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          <input
+            type="text"
+            placeholder="add tag…"
+            className="bg-transparent border-b border-transparent focus:border-amber-accent/40 outline-none px-1 py-0.5 w-24"
+            onKeyDown={async (e) => {
+              if (e.key !== "Enter" || !file) return;
+              const raw = (e.currentTarget.value || "").trim();
+              if (!raw) return;
+              const tag = raw.toLowerCase().replace(/\s+/g, "-");
+              if (file.tags.includes(tag)) {
+                e.currentTarget.value = "";
+                return;
+              }
+              const next = [...file.tags, tag];
+              setFile({ ...file, tags: next });
+              e.currentTarget.value = "";
+              try {
+                const res = await fetch(`/api/files/${file.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ tags: next }),
+                });
+                if (!res.ok) throw new Error("PATCH failed");
+              } catch (err) {
+                setFile({ ...file, tags: file.tags });
+                console.error("Failed to add tag:", err);
+              }
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         {editing ? (
@@ -331,6 +455,12 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleDeleteConfirm}
         loading={deleting}
+      />
+
+      <GitErrorDialog
+        open={gitErrorOpen}
+        onClose={() => setGitErrorOpen(false)}
+        error={gitErrorMessage}
       />
     </div>
   );

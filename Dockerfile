@@ -48,6 +48,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Fix "dubious ownership" errors for mounted volumes
+RUN git config --global --add safe.directory '*'
+
 # Create data directory with proper permissions
 RUN mkdir -p /app/data
 

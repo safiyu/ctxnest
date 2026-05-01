@@ -23,7 +23,7 @@ export function IconRail({ items, footer }: IconRailProps) {
 
   return (
     <>
-      <div className="w-12 shrink-0 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col items-center py-2.5 gap-1.5">
+      <div className="w-12 shrink-0 bg-[var(--bg-primary)] border-r border-[var(--border)] flex flex-col items-center py-2.5 gap-1.5">
         {items.map((it) => (
           <RailButton key={it.id} item={it} onPeek={() => setPeekId(it.id)} />
         ))}

@@ -1,4 +1,4 @@
-import { WebSocketServer, type WebSocket } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import { createFileWatcher, type WatcherEvent } from "@ctxnest/core";
 import type { SyncEvent } from "./sync-events";
 
@@ -90,7 +90,17 @@ export function startWebSocketServer(port: number, watchPaths: string[]) {
 function broadcast(payload: unknown) {
   const message = JSON.stringify(payload);
   for (const client of clients) {
-    if (client.readyState === 1) client.send(message);
+    if (client.readyState !== WebSocket.OPEN) continue;
+    // send() can throw on a half-closed socket (race between the
+    // readyState check and the actual write). Don't let one bad client
+    // crash the watcher event loop.
+    try {
+      client.send(message);
+    } catch (e) {
+      console.warn("[CtxNest] WS send failed:", e);
+      try { client.terminate(); } catch {}
+      clients.delete(client);
+    }
   }
 }
 

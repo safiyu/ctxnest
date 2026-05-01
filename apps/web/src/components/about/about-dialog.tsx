@@ -56,7 +56,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
           <div className="flex justify-center -mb-10">
             <AnimatedLogo size="lg" />
           </div>
-          <h1 className="text-3xl font-bold text-amber-accent tracking-[4px] font-[family-name:var(--font-title)]">
+          <h1 className="text-3xl font-bold text-[#D4903A] tracking-[4px] font-[family-name:var(--font-title)]">
             CTXNEST
           </h1>
           <p className="text-sm font-medium text-[var(--text-secondary)] mt-2">
@@ -77,7 +77,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
             </div>
           )}
           {!loading && data?.changelog && (
-            <MarkdownViewer content={data.changelog} className="p-6 prose-sm" />
+            <MarkdownViewer content={data.changelog} className="p-6 prose-sm text-[#5C3D24] marker:text-[#5C3D24] [&_*]:!text-[#5C3D24] dark:text-[#F5C97A] dark:marker:text-[#F5C97A] dark:[&_*]:!text-[#F5C97A]" />
           )}
           {!loading && !data?.changelog && (
             <div className="p-6 text-center text-[var(--text-secondary)]">

@@ -75,7 +75,7 @@ export function ThreePane({ left, leftRail, middle, right }: ThreePaneProps) {
         leftRail
       ) : (
         <>
-          <div style={{ width: leftWidth }} className="shrink-0 overflow-auto bg-[var(--bg-secondary)] border-r border-[var(--border)]">
+          <div style={{ width: leftWidth }} className="shrink-0 overflow-auto bg-[var(--bg-primary)] border-r border-[var(--border)]">
             {left}
           </div>
           <div
@@ -91,7 +91,7 @@ export function ThreePane({ left, leftRail, middle, right }: ThreePaneProps) {
         onPointerDown={onPointerDown("middle")}
         className="w-1 cursor-col-resize bg-transparent hover:bg-[var(--accent)]/40 transition-colors"
       />
-      <div className="flex-1 min-w-0 overflow-auto bg-[var(--bg-primary)]">{right}</div>
+      <div className="flex-1 min-w-0 overflow-auto bg-[#FFFDF7] dark:bg-[var(--bg-primary)]">{right}</div>
     </div>
   );
 }

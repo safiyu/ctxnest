@@ -10,9 +10,9 @@ interface ParticleDef {
 }
 
 const LG_PARTICLES: ParticleDef[] = [
-  { size: 6, color: "#D4903A", opacity: 0.7, duration: 5, reverse: false, delay: 0 },
-  { size: 4, color: "#f5c97a", opacity: 0.5, duration: 7, reverse: true, delay: -3 },
-  { size: 3, color: "#e8b06a", opacity: 0.4, duration: 9, reverse: false, delay: -5 },
+  { size: 6, color: "#F97316", opacity: 0.75, duration: 5, reverse: false, delay: 0 },
+  { size: 4, color: "#FFB070", opacity: 0.55, duration: 7, reverse: true, delay: -3 },
+  { size: 3, color: "#FFD49A", opacity: 0.45, duration: 9, reverse: false, delay: -5 },
 ];
 
 const CONFIG = {

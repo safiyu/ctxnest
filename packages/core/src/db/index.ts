@@ -50,14 +50,18 @@ export function createDatabase(dbPath: string): Database.Database {
       } catch {}
     };
     process.once("beforeExit", close);
-    process.once("SIGINT", () => {
-      close();
-      process.exit(0);
-    });
-    process.once("SIGTERM", () => {
-      close();
-      process.exit(0);
-    });
+    // Brief drain window so in-flight requests can finish their DB work
+    // before we yank the connection out from under them.
+    const SHUTDOWN_DRAIN_MS = Number(process.env.CTXNEST_SHUTDOWN_DRAIN_MS ?? 1500);
+    const gracefulExit = (signal: string) => {
+      console.log(`[Database] ${signal} received, draining for ${SHUTDOWN_DRAIN_MS}ms before close`);
+      setTimeout(() => {
+        close();
+        process.exit(0);
+      }, SHUTDOWN_DRAIN_MS);
+    };
+    process.once("SIGINT", () => gracefulExit("SIGINT"));
+    process.once("SIGTERM", () => gracefulExit("SIGTERM"));
   }
 
   return db;
@@ -121,8 +125,17 @@ export function runMigrations(): void {
       const migrationPath = join(migrationsDir, file);
       const sql = readFileSync(migrationPath, "utf-8");
 
+      // We wrap the .sql in a JS-side transaction; an inner BEGIN/COMMIT
+      // would conflict with that and leave the migration partially applied
+      // with no _migrations row, causing a permanent re-run loop on boot.
+      if (/^\s*(BEGIN|COMMIT|ROLLBACK)\b/im.test(sql)) {
+        throw new Error(
+          `Migration ${file} contains BEGIN/COMMIT/ROLLBACK; remove it (the migration runner already wraps in a transaction).`
+        );
+      }
+
       console.log(`[Database] Running migration: ${file}`);
-      
+
       // Execute the migration in a transaction
       db.transaction(() => {
         db!.exec(sql);

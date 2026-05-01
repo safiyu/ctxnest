@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { TopBar } from "@/components/layout/top-bar";
 import { ThreePane } from "@/components/layout/three-pane";
 import { FolderTree } from "@/components/folder-tree/folder-tree";
@@ -88,13 +88,19 @@ export default function HomePage() {
     }
   };
 
-  const { files, loading: filesLoading, refresh: refreshFiles } = useFiles({
-    project_id:
-      selectedSection === "projects" ? selectedProjectId : null,
-  });
-
-  // Always fetch knowledge base files and folders
-  const { files: allFiles, refresh: refreshAllFiles } = useFiles({});
+  // Single global fetch — `allFiles` is the source of truth for both the
+  // project view and the KB view. `files` is the project-scoped slice
+  // derived in JS to avoid a duplicate /api/files round-trip on every
+  // section switch (the previous code ran two near-identical fetches at
+  // initial paint).
+  const { files: allFiles, loading: filesLoading, refresh: refreshAllFiles } = useFiles({});
+  const refreshFiles = refreshAllFiles;
+  const files = useMemo(() => {
+    if (selectedSection === "projects" && selectedProjectId !== null) {
+      return allFiles.filter((f) => f.project_id === selectedProjectId);
+    }
+    return allFiles;
+  }, [allFiles, selectedSection, selectedProjectId]);
   const knowledgeFiles = allFiles.filter((f) => !f.project_id);
   const { folders: knowledgeFolders, basePath: knowledgeBasePath } = useFolders(null, folderRefreshKey);
   // Fetch project-specific folders when a project is selected
@@ -220,8 +226,41 @@ export default function HomePage() {
     }
   };
 
-  const handleSearchSelect = (fileId: number) => {
-    setSelectedFileId(fileId);
+  const handleSearchSelect = (result: { id: number; path: string; project_id: number | null }) => {
+    // Switch the surrounding navigation context to the file's owning
+    // section/project so the breadcrumb, file list, and folder tree all
+    // line up with the content the user is about to view.
+    if (result.project_id) {
+      const proj = projects.find((p) => p.id === result.project_id);
+      setSelectedSection("projects");
+      setSelectedProjectId(result.project_id);
+      sessionStorage.setItem("selectedSection", "projects");
+      sessionStorage.setItem("selectedProjectId", String(result.project_id));
+      // Derive folder from file path relative to project path.
+      if (proj?.path && result.path.startsWith(proj.path)) {
+        const rel = result.path.slice(proj.path.length).replace(/^[\/\\]+/, "");
+        const parts = rel.split(/[\/\\]/);
+        const folder = parts.slice(0, -1).join("/");
+        setSelectedFolder(folder || null);
+      } else {
+        setSelectedFolder(null);
+      }
+    } else {
+      setSelectedSection("knowledge");
+      setSelectedProjectId(null);
+      sessionStorage.setItem("selectedSection", "knowledge");
+      sessionStorage.removeItem("selectedProjectId");
+      // Derive KB folder from path relative to <DATA_DIR>/knowledge.
+      if (knowledgeBasePath && result.path.startsWith(knowledgeBasePath)) {
+        const rel = result.path.slice(knowledgeBasePath.length).replace(/^[\/\\]+/, "");
+        const parts = rel.split(/[\/\\]/);
+        const folder = parts.slice(0, -1).join("/");
+        setSelectedFolder(folder || null);
+      } else {
+        setSelectedFolder(null);
+      }
+    }
+    setSelectedFileId(result.id);
     setSearchOpen(false);
   };
 

@@ -19,7 +19,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="h-8 px-4 flex items-center gap-1.5 text-[13px] border-b border-[var(--border)] bg-[var(--bg-primary)] text-[var(--accent)] select-none"
+      className="h-8 px-4 flex items-center gap-1.5 text-[13px] border-b border-[var(--border)] bg-[#5C3D24] dark:bg-[#334155] text-[#F5C97A] select-none"
     >
       {segments.map((seg, i) => {
         const isLast = i === segments.length - 1;
@@ -31,7 +31,7 @@ export function Breadcrumb({ segments }: BreadcrumbProps) {
             ) : (
               <button
                 onClick={seg.onClick}
-                className="hover:text-[var(--text-primary)] transition-colors"
+                className="hover:text-white transition-colors"
               >
                 {seg.label}
               </button>
