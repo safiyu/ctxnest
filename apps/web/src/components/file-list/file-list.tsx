@@ -95,27 +95,41 @@ export function FileList({
 
     // Branch on selectedSection first. Inferring mode from path-data
     // presence races on hard refresh and falsely shows "folder is empty".
+    const isInFolder = (filePath: string, folderBase: string) => {
+      if (!filePath.startsWith(folderBase)) return false;
+      const rel = filePath.slice(folderBase.length).replace(/^[/\\]+/, "");
+      return rel.length > 0 && !rel.includes("/") && !rel.includes("\\");
+    };
+
     if (selectedSection === "projects") {
       if (selectedProject) {
-        result = result.filter((f) => f.project_id === selectedProject.id);
-        if (selectedFolder) {
-          const base = basePath || selectedProject.path;
-          if (base) {
-            const normalizedBase = base.endsWith("/") ? base : base + "/";
-            const folderPrefix = normalizedBase + selectedFolder + "/";
-            result = result.filter((f) => f.path.startsWith(folderPrefix));
+        const base = basePath || selectedProject.path;
+        if (base) {
+          const normalizedBase = base.endsWith("/") || base.endsWith("\\") ? base : base + "/";
+          if (selectedFolder) {
+            const folderPrefix = normalizedBase + (selectedFolder.endsWith("/") || selectedFolder.endsWith("\\") ? selectedFolder : selectedFolder + "/");
+            result = result.filter((f) => isInFolder(f.path, folderPrefix));
+          } else {
+            // Show only files in the root of the project
+            result = result.filter((f) => f.project_id === selectedProject.id && isInFolder(f.path, normalizedBase));
           }
-          // base not loaded yet -> stay on project-wide list (next render narrows).
+        } else {
+          result = result.filter((f) => f.project_id === selectedProject.id);
         }
       } else {
         result = [];
       }
     } else if (selectedSection === "knowledge") {
       result = result.filter((f) => !f.project_id);
-      if (selectedFolder && basePath) {
-        const normalizedBase = basePath.endsWith("/") ? basePath : basePath + "/";
-        const folderPrefix = normalizedBase + selectedFolder + "/";
-        result = result.filter((f) => f.path.startsWith(folderPrefix));
+      if (basePath) {
+        const normalizedBase = basePath.endsWith("/") || basePath.endsWith("\\") ? basePath : basePath + "/";
+        if (selectedFolder) {
+          const folderPrefix = normalizedBase + (selectedFolder.endsWith("/") || selectedFolder.endsWith("\\") ? selectedFolder : selectedFolder + "/");
+          result = result.filter((f) => isInFolder(f.path, folderPrefix));
+        } else {
+          // Show only root knowledge files
+          result = result.filter((f) => isInFolder(f.path, normalizedBase));
+        }
       }
     } else {
       result = [];
