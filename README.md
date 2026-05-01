@@ -49,6 +49,14 @@ CtxNest runs entirely on your machine — no cloud account, no remote inference,
 - **Live UX** — animated status bar streams git stages over WebSockets, ambient sync feedback, ZIP export of any folder/project.
 - **Dual-brain architecture** — project context separated from your personal knowledge base.
 
+## Team Collaboration
+
+Although CtxNest is local-first, it supports team collaboration through its **Global Git Vault**:
+
+1.  **Distributed Sync**: Every developer runs their own local CtxNest instance.
+2.  **Git Relay**: When you save context, CtxNest commits and pushes to your team's private Git repository.
+3.  **Automatic Merging**: When teammates click "Sync," CtxNest pulls and merges their changes into your local database and filesystem, just like code.
+
 ## AI Agent Capabilities
 
 | Capability | Tool(s) | Example prompt |
@@ -330,26 +338,22 @@ Use `docker exec` to spawn the MCP process directly:
 
 `-i` keeps stdin open (required for the stdio transport). `ctxnest` is the `container_name` from the compose file — change it if you renamed the container.
 
-#### Remote machine (AI client on a different host)
+#### Same machine (AI client on the same host as the container)
 
-If your AI client runs on a different machine (e.g. your laptop, while the container runs on a server at `192.168.2.x`), pipe the MCP stdio transport over SSH:
+Use `docker exec` to spawn the MCP process directly:
 
 ```json
 {
   "mcpServers": {
     "ctxnest": {
-      "command": "ssh",
-      "args": ["user@192.168.2.123", "docker", "exec", "-i", "ctxnest", "node", "/app/apps/mcp/dist/index.js"]
+      "command": "docker",
+      "args": ["exec", "-i", "ctxnest", "node", "/app/apps/mcp/dist/index.js"]
     }
   }
 }
 ```
 
-Replace `user@192.168.2.123` with your actual username and server IP. Requires passwordless SSH access (key-based auth) — set it up with:
-
-```bash
-ssh-copy-id user@192.168.2.123
-```
+`-i` keeps stdin open (required for the stdio transport). `ctxnest` is the `container_name` from the compose file — change it if you renamed the container.
 
 #### Mounting your projects (Required for indexing)
 
