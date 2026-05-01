@@ -2,19 +2,18 @@
 
 ## 4.0.0 (2026-05-01)
 
-### Docker & Git Stability
-- **"Dubious Ownership" Resolution** — Added a system-level Git configuration to the Docker image that automatically trusts mounted project volumes. This eliminates the common `fatal: detected dubious ownership` error when running CtxNest in Docker on Linux.
-- **Forced Sync for Ignored Files** — Synchronization now uses the force flag (`git add -f`) to ensure that critical context files (like those in a `scratch/` folder) are correctly backed up even if they are covered by local `.gitignore` rules.
-- **Idempotent Repo Initialization** — The Git engine now automatically registers directories as safe during initialization, ensuring a smooth first-run experience in containerized environments.
+### Rock-Solid Backups
+- **Better Docker Support** — Fixed the common "ownership" error when running CtxNest on Linux. The system now automatically handles permission issues so your files sync perfectly every time.
+- **No File Left Behind** — Folders that were previously ignored (like the `scratch` folder) are now properly backed up. Your work is safe, even in folders you've hidden from Git.
+- **Smarter Synchronization** — The system now automatically cleans up old records when you delete files from your computer, keeping your database lean and accurate.
 
-### UI & UX Enhancements
-- **Non-Recursive Folder Explorer** — Redesigned the File List filtering to match standard file explorer behavior. Clicking a folder now shows only the files directly inside it, while clicking the project root shows only the root files.
-- **Premium Error Reporting** — Replaced native browser alerts with a custom, high-fidelity `GitErrorDialog`. Git failures now appear in a sleek modal that explains why a commit failed and how it affects history.
-- **Robust Path Normalization** — Hardened the client-side path logic to handle cross-platform separators (Windows backslashes vs. Linux forward-slashes) and prevent UI crashes when metadata is incomplete.
+### Refined User Experience
+- **Intuitive Folder Browsing** — Navigating your files now works exactly like your computer's file explorer. Click a folder to see what's inside; click the project name to see the root files.
+- **Premium Notifications** — No more generic browser alerts. All errors now appear in a beautiful, custom-designed window that clearly explains what happened and how to fix it.
+- **Faster UI** — Optimized the way paths are handled to prevent crashes and ensure the app loads instantly, regardless of your operating system.
 
-### New Features & Tools
-- **File Restoration** — Added a new `restore_file` MCP tool. Agents can now programmatically revert files to any previous version using hashes retrieved from the Git history.
-- **Automatic Pruning** — Improved project synchronization to automatically prune stale file records from the database if the corresponding files are deleted from the local filesystem.
+### New Recovery Tools
+- **Time Travel for Files** — Added a powerful new tool that lets agents revert files to any previous version. If you make a mistake, you can jump back in time with a single click.
 
 ## 3.1.0 (2026-04-30)
 

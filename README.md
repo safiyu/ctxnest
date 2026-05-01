@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v3.1
+  CtxNest v4.0
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,10 +9,10 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's new in 3.1** — agent-first surface upgrades:
-> - `whats_new` and `project_map` MCP tools — fresh sessions can catch up on changes and survey the knowledge base in a single call.
-> - `list_files` and `search` now return `tags`, `est_tokens`, and `size_bytes` inline — no more N+1 `read_file` to inspect what you have.
-> - `clip_url` detects auth walls (Confluence, SSO, login pages) and returns `{auth_required, login_url, ...}` instead of a useless clip; accepts a `headers` param for cookie/token retry.
+> **What's new in 4.0** — Stability & UX:
+> - **Rock-Solid Backups** — Fixed the common "ownership" error when running in Docker on Linux. Your work is safe, even in folders you've hidden from Git.
+> - **Better File Browsing** — Navigating your files now works exactly like your computer's file explorer.
+> - **Time Travel** — Added a powerful new tool that lets AI agents jump back to any previous version of a file if they make a mistake.
 > See [`CHANGELOG.md`](CHANGELOG.md) for details.
 
 <p align="center">
