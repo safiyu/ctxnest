@@ -173,6 +173,25 @@ export default function HomePage() {
     }
   };
 
+  const handleRefreshProject = async () => {
+    if (!selectedProjectId) return;
+    try {
+      const response = await fetch(`/api/projects/${selectedProjectId}/refresh`, {
+        method: "POST",
+      });
+      if (response.ok) {
+        refreshFiles();
+        refreshAllFiles();
+        setFolderRefreshKey((k) => k + 1);
+      } else {
+        const data = await response.json();
+        alert(data.error || "Refresh failed");
+      }
+    } catch (error) {
+      console.error("Failed to refresh project:", error);
+    }
+  };
+
   const handleSyncAll = async () => {
     const response = await fetch("/api/git/sync-all", { method: "POST" });
     if (response.ok || response.status === 207) {
@@ -430,7 +449,7 @@ export default function HomePage() {
             onDeleteFolder={handleDeleteFolder}
             projects={projects}
             onUploaded={() => { refreshFiles(); refreshAllFiles(); }}
-            onRefresh={() => { refreshFiles(); refreshAllFiles(); }}
+            onRefresh={handleRefreshProject}
             onNewFile={() => setNewFileOpen(true)}
           />
         }

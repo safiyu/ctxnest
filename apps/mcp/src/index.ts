@@ -30,6 +30,7 @@ import {
   whatsNew,
   projectMap,
   getTagsForFiles,
+  restoreVersion,
 } from "@ctxnest/core";
 import { join } from "node:path";
 import { statSync, openSync, readSync, closeSync } from "node:fs";
@@ -316,30 +317,38 @@ server.tool(
   async ({ name, path, description }) => {
     if (!path) {
       return {
-        content: [{ type: "text", text: JSON.stringify({ error: "Project path is required. Please provide the absolute path to the project, or use the current working directory." }, null, 2) }],
+        isError: true,
+        content: [{ type: "text", text: JSON.stringify({ error: "Project path is required. Please provide the absolute path to the project." }, null, 2) }],
       };
     }
-    const project = registerProject(name, path, description);
-    const discoveredFiles = discoverFiles(project.id, dataDir);
-    const annotated = discoveredFiles.map(annotateTokens);
-    const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              project,
-              discovered_files_count: annotated.length,
-              total_est_tokens,
-              discovered_files: annotated,
-            },
-            null,
-            2
-          ),
-        },
-      ],
-    };
+    try {
+      const project = registerProject(name, path, description);
+      const discoveredFiles = discoverFiles(project.id, dataDir);
+      const annotated = discoveredFiles.map(annotateTokens);
+      const total_est_tokens = annotated.reduce((s, f) => s + (f.est_tokens ?? 0), 0);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                project,
+                discovered_files_count: annotated.length,
+                total_est_tokens,
+                discovered_files: annotated,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (e: any) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: JSON.stringify({ error: e.message }, null, 2) }],
+      };
+    }
   }
 );
 
@@ -471,6 +480,44 @@ server.tool(
         },
       ],
     };
+  }
+);
+
+server.tool(
+  "restore_file",
+  "Restore a context file to a specific commit version. Use the hashes returned by get_history. This is useful for undoing accidental changes or recovering previous content.",
+  {
+    file_id: z.number().describe("ID of the file"),
+    hash: z.string().describe("Commit hash to restore from (from get_history)"),
+  },
+  async ({ file_id, hash }) => {
+    try {
+      const file = readFile(file_id);
+      const content = await restoreVersion(repoDirForFile(file), file.path, hash);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                file_id,
+                path: file.path,
+                hash,
+                success: true,
+                message: `File restored to version ${hash.slice(0, 7)}`,
+              },
+              null,
+              2
+            ),
+          },
+        ],
+      };
+    } catch (e: any) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: JSON.stringify({ error: e.message }, null, 2) }],
+      };
+    }
   }
 );
 

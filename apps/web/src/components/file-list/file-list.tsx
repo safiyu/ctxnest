@@ -214,6 +214,13 @@ export function FileList({
                 >
                   <span>↻</span> Sync Project
                 </button>
+                <button
+                  type="button"
+                  onClick={() => { setProjectMenuOpen(false); onRefresh(); }}
+                  className="dropdown-item"
+                >
+                  <span>🔍</span> Scan for New Files
+                </button>
                 {!selectedFolder && onUnregisterProject && (
                   <button
                     type="button"

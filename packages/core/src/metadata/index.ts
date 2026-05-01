@@ -155,14 +155,22 @@ export function registerProject(
 
   const slug = slugify(name);
   const insertStmt = db.prepare(`
-    INSERT INTO projects (name, slug, path, description, remote_url)
+    INSERT OR IGNORE INTO projects (name, slug, path, description, remote_url)
     VALUES (?, ?, ?, ?, ?)
   `);
 
   const result = insertStmt.run(name, slug, path, description || null, remoteUrl || null);
-  const projectId = Number(result.lastInsertRowid);
-
-  const projectRecord = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as ProjectRecord;
+  
+  let projectRecord: ProjectRecord;
+  if (result.changes > 0) {
+    const projectId = Number(result.lastInsertRowid);
+    projectRecord = db.prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as ProjectRecord;
+  } else {
+    // If ignored, it means name or slug already exists. Fetch the existing one.
+    // We prioritize name for lookup.
+    projectRecord = db.prepare("SELECT * FROM projects WHERE name = ?").get(name) as ProjectRecord;
+  }
+  
   return projectRecord;
 }
 
@@ -221,6 +229,12 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
 
   const projectPath = project.path;
   const discoveredFiles: FileRecord[] = [];
+  const foundPaths = new Set<string>();
+
+  // Get all existing files for this project in the DB
+  const existingFiles = db.prepare("SELECT path FROM files WHERE project_id = ?").all(projectId) as { path: string }[];
+  const existingPaths = new Set(existingFiles.map(f => f.path));
+
   // Cap size to keep huge files from blowing up memory and the FTS index.
   const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MiB
 
@@ -253,6 +267,9 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
           console.warn(`discoverFiles: skipping ${fullPath} (size ${lst.size} > ${MAX_FILE_BYTES})`);
           continue;
         }
+        
+        foundPaths.add(fullPath);
+
         try {
           const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(fullPath) as { id: number } | undefined;
           if (existing) continue;
@@ -268,26 +285,41 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
           `);
           const ftsStmt = db.prepare("INSERT INTO fts_index (rowid, title, content) VALUES (?, ?, ?)");
 
-          const fileId = db.transaction(() => {
+          db.transaction(() => {
             const result = insertStmt.run(fullPath, title, projectId, contentHash);
-            if (result.changes === 0) return null;
-            const id = Number(result.lastInsertRowid);
-            ftsStmt.run(id, title, content);
-            return id;
+            if (result.changes > 0) {
+              const fileId = Number(result.lastInsertRowid);
+              ftsStmt.run(fileId, title, content);
+              const newFile = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
+              discoveredFiles.push(newFile);
+            }
           })();
-
-          if (fileId !== null) {
-            const fileRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(fileId) as FileRecord;
-            discoveredFiles.push(fileRecord);
-          }
-        } catch (e) {
-          console.warn(`discoverFiles: failed for ${fullPath}:`, e);
+        } catch (e: any) {
+          console.error(`discoverFiles: failed to index ${fullPath}:`, e.message);
         }
       }
     }
   }
 
   scanDirectory(projectPath);
+
+  // Prune files that are in the DB but were not found on disk
+  const missingPaths = [...existingPaths].filter(p => !foundPaths.has(p));
+  if (missingPaths.length > 0) {
+    const deleteFtsStmt = db.prepare("DELETE FROM fts_index WHERE rowid = ?");
+    const deleteFileStmt = db.prepare("DELETE FROM files WHERE id = ?");
+
+    db.transaction(() => {
+      for (const path of missingPaths) {
+        const file = db.prepare("SELECT id FROM files WHERE path = ?").get(path) as { id: number } | undefined;
+        if (file) {
+          deleteFtsStmt.run(file.id);
+          deleteFileStmt.run(file.id);
+        }
+      }
+    })();
+  }
+
   return discoveredFiles;
 }
 
