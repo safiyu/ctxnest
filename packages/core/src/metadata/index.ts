@@ -11,6 +11,18 @@ import { computeHash } from "../files/index.js";
 
 export interface FileRecordWithRank extends FileRecord {
   rank: number;
+  /**
+   * FTS5 snippet around the matched terms in `content`. Hits are wrapped in
+   * `<<<…>>>` markers; boundaries elided with `…`. Lets agents see WHERE the
+   * match was without re-reading the whole file.
+   */
+  match_excerpt: string | null;
+  /**
+   * Full title with `<<<…>>>` markers around the matched terms. Useful when
+   * the hit was in the title (snippet on title would just return the whole
+   * thing anyway, so highlight is more informative).
+   */
+  title_highlight: string | null;
 }
 
 export interface RelatedFileRecord extends FileRecord {
@@ -107,8 +119,14 @@ export function setFavorite(fileId: number, favorite: boolean): void {
 export function search(filters: SearchFilters): FileRecordWithRank[] {
   const db = getDatabase();
 
+  // snippet(fts_index, 1, ...) targets the `content` column (column 1; title
+  // is column 0). Markers are agent-parsable triple-bracket pairs that are
+  // unlikely to collide with real markdown content.
   let sql = `
-    SELECT files.*, fts_index.rank
+    SELECT files.*,
+           fts_index.rank,
+           snippet(fts_index, 1, '<<<', '>>>', '…', 16) AS match_excerpt,
+           highlight(fts_index, 0, '<<<', '>>>') AS title_highlight
     FROM fts_index
     JOIN files ON files.id = fts_index.rowid
     WHERE fts_index MATCH ?

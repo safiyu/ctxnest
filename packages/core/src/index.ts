@@ -1,6 +1,8 @@
 export { createDatabase, getDatabase, closeDatabase } from "./db/index.js";
 import { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, createFolder, deleteFolder, listProjectFolders, slugify } from "./files/index.js";
 export { createFile, readFile, updateFile, deleteFile, listFiles, moveFile, createFolder, deleteFolder, listProjectFolders, slugify };
+export { parseOutline, findSection, replaceSection, type OutlineNode } from "./files/sections.js";
+export { assertPathInside } from "./util/safety.js";
 export {
   addTags, removeTags, setFavorite, search,
   registerProject, unregisterProject, discoverFiles, listTags, listProjects,

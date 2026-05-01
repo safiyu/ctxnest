@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.0.0 (2026-05-01)
+
+### A Bigger MCP Toolbox (13 → 42 tools)
+- **Section-level edits** — `read_file_outline`, `read_section`, and `update_file_section` let agents work on one heading at a time instead of pulling whole files. Big context-window win.
+- **Search excerpts** — every `search` hit now carries a snippet around the match with `<<<…>>>` markers, so agents skip the "now read the file to see what matched" step.
+- **Structure management** — folder ops (`list_folders`, `create_folder`, `delete_folder`) and `move_file` finally let agents organize the KB without bouncing to the web UI.
+- **Batch + lookup + stats** — `create_files` / `read_files` / `delete_files` (≤500/call), `tag_search_results`, `read_file_by_path`, `stats`, and `suggest_tags` collapse the most common multi-call patterns into one call.
+- **Metadata-only file inspection** — `describe_file` returns tags, history depth, related files, and link-aware backlinks WITHOUT pulling the body. Replaces 3-4 chained calls when an agent is "getting acquainted" with a file.
+- **Range + regex reads** — `read_file_lines` for stack-trace-style line ranges; `grep_in_file` and `regex_search` catch what FTS5's tokenizer misses (URLs, identifiers, hyphenated terms).
+- **Capture & recovery** — `journal_append` for timestamped daily notes, `diff_against_disk` and `refresh_index` for spotting and fixing drift after external edits or sync merges.
+
+### Robustness
+- Fixed a `syncBackup` deadlock when a project's path equals the data dir.
+- Extended the file-watcher denylist (`.next`, `.venv`, `dist`, build/cache dirs) so they no longer pollute the index.
+- Sync-all timeouts now log loudly and broadcast an error so cascading stalls aren't silent.
+
+### Tests
+- New MCP smoke harness exercises every tool against a temp data dir; wired into `pnpm test`. **43/43 passing.**
+
 ## 4.0.0 (2026-05-01)
 
 ### Rock-Solid Backups

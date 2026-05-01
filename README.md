@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v4.0
+  CtxNest v5.0
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,10 +9,11 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's new in 4.0** — Stability & UX:
-> - **Rock-Solid Backups** — Fixed the common "ownership" error when running in Docker on Linux. Your work is safe, even in folders you've hidden from Git.
-> - **Better File Browsing** — Navigating your files now works exactly like your computer's file explorer.
-> - **Time Travel** — Added a powerful new tool that lets AI agents jump back to any previous version of a file if they make a mistake.
+> **What's new in 5.0** — A much bigger MCP toolbox:
+> - **Section-level edits** — agents can now read just one heading's body or surgically replace it, instead of pulling whole files. Big context-window win.
+> - **Search excerpts** — every search hit ships with a snippet around the match, so agents skip the "now read the file to see what matched" step.
+> - **Folders, batch ops, stats, and journaling** — agents can finally manage structure, create/delete in bulk, get a one-shot overview, and append timestamped journal entries without touching the web UI.
+> - **`refresh_index`** — fixes drift when an editor or sync writes a file behind CtxNest's back.
 > See [`CHANGELOG.md`](CHANGELOG.md) for details.
 
 <p align="center">
@@ -59,19 +60,74 @@ Although CtxNest is local-first, it supports team collaboration through its **Gl
 
 ## AI Agent Capabilities
 
-| Capability | Tool(s) | Example prompt |
+The MCP server exposes **42 tools** designed for agents that care about context-window economy. Every file-returning response is annotated with `est_tokens` and `size_bytes`; list/search responses also inline `tags` and `match_excerpt` so a single call usually replaces 3-5.
+
+### Reading
+
+| Tool | What it does | Example prompt |
 | :--- | :--- | :--- |
-| Dynamic context retrieval | `search`, `bundle_search` | "Find auth system notes in CtxNest." |
-| Two-way write-back | `create_file`, `update_file` | "Save this migration plan to CtxNest." |
-| Time-travel diffs | `get_history`, `get_diff` | "Diff the auth note vs. last week's version." |
-| Auto-indexing | `discover_files` | "Discover any new markdown in `docs/`." |
-| Live disk awareness | file watcher | "I just edited the API schema, re-scan." |
-| Web clipping (auth-aware) | `clip_url` | "Clip this Confluence page; ask me for a Cookie header if it's walled." |
-| Reusable templates | `list_files` + `read_file` | "Pull the `api-route` template." |
-| Agent-assisted tagging | `list_files{untagged:true}` + `add_tags` | "Find untagged files and tag them." |
-| Related-context lookup | `find_related` | "Find files related to the auth note." |
-| Session catch-up | `whats_new` | "What changed in CtxNest in the last 24h?" |
-| Project map / outline | `project_map` | "Give me a map of CtxNest." |
+| `read_file` | Full file contents + token estimate. | "Read CtxNest file 42." |
+| `read_files` | Batch read by id (≤200) — symmetric to `create_files` / `delete_files`. | "Read files 12, 15, and 19 in one call." |
+| `read_file_by_path` | Same as `read_file` but looked up by absolute path — bridges from your shell's cwd. | "Read `/Users/me/notes/auth.md` from CtxNest." |
+| `read_file_outline` | Heading-only outline (level, text, line, byte range) — survey before pulling. | "What sections does the deployment doc have?" |
+| `read_section` | Just one heading's body — the rest of the file stays out of context. | "Read the 'Rotation' section of the auth notes." |
+| `read_file_lines` | Line-range slice (1-indexed, clamps out-of-range). Honors stack-trace-style references. | "Read lines 40-60 of the auth note." |
+| `describe_file` | Everything ABOUT a file without pulling its content: tags, size, history depth, related files, backlinks. Replaces 3-4 chained calls. | "Tell me about file 31 without loading it." |
+| `list_files` | Filter by project / tag / folder / favorite / untagged; results carry tags + tokens inline. | "List untagged KB files." |
+
+### Writing
+
+| Tool | What it does | Example prompt |
+| :--- | :--- | :--- |
+| `create_file`, `create_files` | Single or batch (≤200) create. | "Save these three migration plans as separate files." |
+| `update_file` | Replace whole file content; auto-commits to git. | "Update the API contract note with these changes." |
+| `update_file_section` | **Surgical**: replace one heading's body without touching siblings. Same git/FTS path as `update_file`. | "Replace the 'Setup' section of the auth note with this." |
+| `delete_file`, `delete_files` | Single or batch (≤500) delete. KB files are unlinked from disk; project-reference files are only un-indexed. | "Delete files 12, 15, and 18." |
+| `move_file` | Rename / relocate. Validation refuses cross-project / cross-section moves. | "Rename file 7 to `archive/auth-2024.md`." |
+| `journal_append` | Append a timestamped `## HH:MM:SS` entry to today's `knowledge/journal/YYYY-MM-DD.md`; creates on first call. | "Add this thought to today's journal: …" |
+
+### Search
+
+| Tool | What it does | Example prompt |
+| :--- | :--- | :--- |
+| `search` | FTS5 full-text. Returns `match_excerpt` (16-token window with `<<<…>>>` markers) and `title_highlight` so agents see WHERE the match was without re-reading the file. | "Search for `OAuth` across all CtxNest." |
+| `bundle_search` | Search + concatenate matches into one prompt-ready blob (XML or Markdown). Stops at `max_tokens` budget; overflow lands in `skipped[]`. | "Bundle the top 5 deployment notes under 30k tokens." |
+| `find_related` | Files sharing tags with a given file, ranked by overlap. Surfaces context the same query wouldn't find. | "Find files related to the auth note." |
+| `regex_search` | Cross-file regex when FTS5's tokenizer misses (URLs, code identifiers, hyphenated terms). Scope by project; `max_files` / `max_matches_per_file` bound the cost. | "Find every mention of `oa-data-rmspcockpit-[a-z]+` in the project." |
+| `grep_in_file` | Within-file regex with line numbers — different from FTS5; catches what tokenizer-based search can't. | "Find every `fact_*` table reference in file 83." |
+
+### Tagging & favorites
+
+| Tool | What it does | Example prompt |
+| :--- | :--- | :--- |
+| `add_tags`, `remove_tags`, `list_tags`, `set_favorite` | The basics. | "Tag file 22 with `infra` and `2024-q4`." |
+| `suggest_tags` | Proposes tags from your existing corpus by FTS-matching the file's distinctive terms against tagged neighbors. No LLM. | "Suggest tags for file 31." |
+| `tag_search_results` | Run a search, then bulk-apply tags to every match. | "Tag every file matching 'kubernetes' with `infra`." |
+
+### Folders & projects
+
+| Tool | What it does | Example prompt |
+| :--- | :--- | :--- |
+| `list_folders`, `create_folder`, `delete_folder` | Folder CRUD. `delete_folder` refuses project folders (the watcher would re-ingest); KB only. | "Create a `journal` folder under the KB." |
+| `register_project`, `list_projects` | Add an external repo as a project; CtxNest indexes its `.md` files. Warns when total tokens exceed `CTXNEST_PROJECT_TOKEN_WARN`. | "Register `~/code/foo` as a project." |
+| `project_map` | Single-call indented outline of folders + file titles + tags + ids — typically 5× denser than `list_files`. | "Give me a map of the `acme` project." |
+| `stats` | Counts: files, untagged, favorites, top tags, by-project breakdown. Optional total token cost. | "How many untagged files are in the KB?" |
+
+### Versioning & integrity
+
+| Tool | What it does | Example prompt |
+| :--- | :--- | :--- |
+| `get_history`, `get_diff`, `restore_file` | Per-file git log, unified diff between commits, restore to any commit. | "Diff the auth note between this week and last." |
+| `commit_backup` | Sync a project's reference files to its global-vault backup tree (push to remote if configured). | "Back up the `acme` project." |
+| `diff_against_disk` | Reports drift between disk content and the FTS index (after external edits / sync merges). Returns `in_sync` / `diverged` / `disk_unreadable` / `no_index_row`. | "Did anything change on disk that I missed?" |
+| `refresh_index` | Re-scan the KB (or one project) and reconcile the FTS index — picks up new files, refreshes drifted hashes, prunes vanished rows. The MCP server has no file watcher (the web app does), so this is the explicit fix-up after editor / sync writes. | "Refresh the KB index." |
+
+### Discovery
+
+| Tool | What it does | Example prompt |
+| :--- | :--- | :--- |
+| `whats_new` | Files created or modified since a checkpoint (`"30m"`, `"7d"`, ISO timestamp). Each entry tagged `created`/`modified`. | "What changed in CtxNest in the last 24h?" |
+| `clip_url` | Fetch + Readability-extract a web page into the KB. Detects auth walls (Confluence, SSO, login pages) and returns `AUTH_REQUIRED` with a `login_url` so the agent can retry with `headers: { Cookie: … }`. | "Clip `https://wiki/confluence/…`; if it's gated, ask me for a cookie." |
 
 ## Quick Start (Docker)
 
@@ -374,13 +430,29 @@ Every file-returning tool annotates its response with `size_bytes` and `est_toke
 
 | Tool | Response shape |
 | :--- | :--- |
-| `read_file`, `create_file`, `update_file` | `{ ...file, size_bytes, est_tokens }` |
+| `read_file`, `read_file_by_path`, `create_file`, `update_file`, `update_file_section` | `{ ...file, size_bytes, est_tokens }` |
 | `list_files` | `{ files: [{ ...file, tags, size_bytes, est_tokens }], total_est_tokens }` |
-| `search` | `{ matches: [{ ...file, tags, size_bytes, est_tokens }], total_est_tokens }` |
+| `search` | `{ matches: [{ ...file, tags, size_bytes, est_tokens, match_excerpt, title_highlight }], total_est_tokens }` — excerpts wrap hits in `<<<…>>>` markers |
 | `whats_new` | `{ since, until, count, total_est_tokens, files: [{ ...file, change: "created"\|"modified", tags, size_bytes, est_tokens }] }` |
 | `project_map` | `{ stats: { files, folders, roots, truncated }, est_tokens, outline }` (outline is an indented text string with `[id] Title  #tag1 #tag2` per leaf) |
-| `register_project` | `{ project, discovered_files_count, total_est_tokens, discovered_files: [...annotated] }` |
+| `register_project` | `{ project, discovered_files_count, total_est_tokens, discovered_files: [...annotated], warnings? }` (warnings include scan failures and over-budget hints) |
 | `bundle_search` | `{ bundle, meta: { query, format, total_est_tokens, included: [{id, path, est_tokens}], skipped: [{..., reason}] } }` |
+| `read_file_outline` | `{ file_id, path, title, outline: [{ level, text, line, byteStart, byteEnd }] }` |
+| `read_section` | `{ file_id, path, heading, level, line, content, size_bytes, est_tokens }` |
+| `read_file_lines` | `{ file_id, path, from, to, total_lines, content, size_bytes, est_tokens }` |
+| `read_files` | `{ files: [...annotated], total_est_tokens, error_count, errors: [{ id, error }] }` |
+| `describe_file` | `{ id, path, title, project_id, project_name, folder, storage_type, tags, favorite, size_bytes, est_tokens, history_count, related: [{id, shared_tag_count}], backlinks: [{id, title, path}] }` — no `content` |
+| `grep_in_file` | `{ file_id, path, pattern, match_count, truncated, matches: [{line, text}] }` |
+| `regex_search` | `{ pattern, files_scanned, files_truncated, file_hit_count, total_match_count, hits: [{file_id, path, title, match_count, matches: [{line, text}]}] }` |
+| `create_files`, `delete_files` | `{ created\|deleted_count, error_count, created\|deleted: [...], errors: [{ index\|id, error }] }` — per-item failures don't abort the batch |
+| `tag_search_results` | `{ matched_count, tagged_count, tags_applied, tagged_ids, errors }` |
+| `list_folders` | `{ folders: string[], base_path }` |
+| `move_file` | `{ ...file }` (post-move record) |
+| `stats` | `{ scope, file_count, untagged_count, favorite_count, top_tags: [{name, count}], by_project?, total_est_tokens? }` |
+| `suggest_tags` | `{ file_id, path, existing_tags: string[], suggestions: [{ tag, score, sources }] }` |
+| `diff_against_disk` | `{ status: "in_sync" \| "diverged" \| "disk_unreadable" \| "no_index_row", ...sizes, first_diff_line?, disk_sample?, index_sample? }` |
+| `refresh_index` | `{ scope, newly_indexed, refreshed, pruned }` |
+| `journal_append` | `{ file_id, path, date, time, appended_chars, est_tokens }` |
 | `clip_url` (auth-walled) | `isError: true` with `{ code: "AUTH_REQUIRED", auth_required: true, login_url, signal, www_authenticate?, hint }` — retry with `headers: {"Cookie": "..."}` or `{"Authorization": "Bearer ..."}` |
 
 > [!NOTE]

@@ -1,6 +1,6 @@
 {
   "name": "@ctxnest/mcp",
-  "version": "4.0.0",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -13,7 +13,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "smoke": "node test-tools.mjs",
+    "test": "node test-tools.mjs"
   },
   "dependencies": {
     "@ctxnest/core": "workspace:*",
