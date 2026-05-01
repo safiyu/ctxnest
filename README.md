@@ -300,7 +300,11 @@ Use absolute paths — most clients launch the process from their own working di
 
 ### Docker-based configuration
 
-If CtxNest is running in the Docker container from Quick Start, use `docker exec` to spawn the MCP process inside the container. No `env` block is needed because `CTXNEST_DATA_DIR=/app/data` is already set on the container by the compose file:
+If CtxNest is running in Docker, the MCP server lives at `/app/apps/mcp/dist/index.js` inside the container. No `env` block is needed — `CTXNEST_DATA_DIR=/app/data` is already set by the compose file.
+
+#### Same machine (AI client on the same host as the container)
+
+Use `docker exec` to spawn the MCP process directly:
 
 ```json
 {
@@ -313,7 +317,28 @@ If CtxNest is running in the Docker container from Quick Start, use `docker exec
 }
 ```
 
-`-i` keeps stdin open (required for the stdio transport). `ctxnest` is the `container_name` from `docker-compose.yml` — change it if you renamed the container.
+`-i` keeps stdin open (required for the stdio transport). `ctxnest` is the `container_name` from the compose file — change it if you renamed the container.
+
+#### Remote machine (AI client on a different host)
+
+If your AI client runs on a different machine (e.g. your laptop, while the container runs on a server at `192.168.2.x`), pipe the MCP stdio transport over SSH:
+
+```json
+{
+  "mcpServers": {
+    "ctxnest": {
+      "command": "ssh",
+      "args": ["user@192.168.2.123", "docker", "exec", "-i", "ctxnest", "node", "/app/apps/mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+Replace `user@192.168.2.123` with your actual username and server IP. Requires passwordless SSH access (key-based auth) — set it up with:
+
+```bash
+ssh-copy-id user@192.168.2.123
+```
 
 ### Tool response shape
 
