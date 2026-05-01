@@ -11,6 +11,7 @@ services:
       - "3001:3001"
     volumes:
       - ./ctxnest-data:/app/data
+      # - /path/to/your/projects:/path/to/your/projects # Mount your projects directory here
     environment:
       - NODE_ENV=production
       - PORT=3000

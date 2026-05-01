@@ -340,6 +340,19 @@ Replace `user@192.168.2.123` with your actual username and server IP. Requires p
 ssh-copy-id user@192.168.2.123
 ```
 
+#### Mounting your projects (Required for indexing)
+
+For the Docker-based MCP server to see your local files, you **must** mount your projects directory in `docker-compose.yml`:
+
+```yaml
+volumes:
+  - ./ctxnest-data:/app/data
+  - /home/user/Projects:/home/user/Projects  # Mount your host path to the same container path
+```
+
+> [!TIP]
+> To ensure the AI client (running on your host) and the MCP server (running in the container) agree on file paths, it is recommended to mount your host path to the **exact same path** inside the container (e.g., `/home/safiyu/Projects:/home/safiyu/Projects`).
+
 ### Tool response shape
 
 Every file-returning tool annotates its response with `size_bytes` and `est_tokens` so agents can budget their context window before pulling content. The estimator samples each file's head and uses `bytes/4` for ASCII-heavy content (~10% accurate vs BPE) or `bytes/3` for multi-byte (CJK/emoji). List-style tools also carry a `total_est_tokens` summary.

@@ -28,8 +28,11 @@ ARG WS_PORT=3001
 ENV NEXT_PUBLIC_WS_PORT=${WS_PORT}
 
 # Build everything
-# This will build @ctxnest/core first, then apps/web and apps/mcp
 RUN pnpm build
+
+# Deploy MCP server with its production dependencies
+# This creates a standalone directory with its own node_modules
+RUN pnpm --filter @ctxnest/mcp deploy /app/mcp-deploy
 
 # Stage 2: Runner
 FROM node:20-slim AS runner
@@ -38,6 +41,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV CTXNEST_DATA_DIR=/app/data
 ENV CTXNEST_DB_PATH=/app/data/ctxnest.db
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create data directory with proper permissions
 RUN mkdir -p /app/data
@@ -48,9 +56,8 @@ COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
-# Copy built MCP server for optional use via docker exec
-COPY --from=builder /app/apps/mcp/dist ./apps/mcp/dist
-COPY --from=builder /app/apps/mcp/package.json ./apps/mcp/package.json
+# Copy deployed MCP server
+COPY --from=builder /app/mcp-deploy ./apps/mcp
 
 # Web UI on 3000, file-watcher WebSocket on WS_PORT (default 3001).
 EXPOSE 3000 3001
