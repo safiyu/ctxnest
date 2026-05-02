@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "ctxnest",
-  "version": "5.2.6",
+  "version": "5.2.7",
   "description": "High-performance centralized context engine for agentic workflows. Features surgical section edits, real-time token estimation, and a global git-backed knowledge vault for LLM agents.",
   "repository": "https://github.com/safiyu/ctxnest",
   "license": "Apache-2.0",

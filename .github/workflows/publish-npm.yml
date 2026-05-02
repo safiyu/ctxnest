@@ -61,11 +61,9 @@ jobs:
         run: pnpm -C apps/mcp test
 
       - name: Publish to npm
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          package: ./apps/mcp/package.json
-          access: public
-          provenance: true
+        run: npm publish ./apps/mcp --access public --provenance
+        env:
+          "NPM_CONFIG_//registry.npmjs.org/:_authToken": ""
  
       - name: Extract release notes from CHANGELOG
         id: notes
