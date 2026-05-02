@@ -189,7 +189,7 @@ docker compose -f docker-compose.hub.yml up -d
 If you are using [Glama.ai](https://glama.ai/mcp/registry), you can use the official pre-built image from the Glama Registry:
 
 ```bash
-docker run -it -v /path/to/data:/app/data registry.glama.ai/mcp-ntrhtsg0bk:autqs0qwrn
+docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest
 ```
 
 To use it as an MCP server in your `mcpServers.json`:
@@ -199,7 +199,7 @@ To use it as an MCP server in your `mcpServers.json`:
   "mcpServers": {
     "ctxnest": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-v", "/path/to/data:/app/data", "registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv"]
+      "args": ["run", "-i", "--rm", "-v", "/path/to/data:/app/data", "safiyu/ctxnest:latest"]
     }
   }
 }
