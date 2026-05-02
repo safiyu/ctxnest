@@ -36,6 +36,9 @@ A short walkthrough of knowledge vaulting, surgical section edits, and live MCP 
 - **1:08** — Drafting a strategy doc from project context via MCP
 - **1:37** — Bundling project context as a single XML block
 
+## Demo Server
+**You can try out the mcp endpoints by visiting [glama](https://glama.ai/mcp/servers/safiyu/ctxnest)
+
 ## Why CtxNest?
 
 Git is built for code; CtxNest is built for **context**. It gives you a **single global vault** for context across every project, **two-way sync** that pulls and merges collaborator changes via native git, **versioned snapshots** as a safety net for accidental wipes, and a **pay-as-you-go MCP surface** so agents fetch only what they need instead of preloading thousands of tokens per turn. Registering a project also makes it part of a global pool — agents can pull standards from any project to help with the current one.
@@ -188,7 +191,7 @@ docker compose -f docker-compose.hub.yml up -d
 If you are using [Glama.ai](https://glama.ai/mcp/registry), you can use the official pre-built image from the Glama Registry:
 
 ```bash
-docker run -it -v /path/to/data:/app/data registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv
+docker run -it -v /path/to/data:/app/data registry.glama.ai/mcp-ntrhtsg0bk:autqs0qwrn
 ```
 
 To use it as an MCP server in your `mcpServers.json`:
