@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v5.2.7
+  CtxNest v5.2.8
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
