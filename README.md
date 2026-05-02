@@ -20,6 +20,16 @@ CtxNest is a high-performance markdown context manager that bridges the gap betw
   <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
 </p>
 
+## Demo Walkthrough
+
+[![CtxNest Demo Video](https://img.youtube.com/vi/wq8Hz5d7wHI/maxresdefault.jpg)](https://www.youtube.com/watch?v=wq8Hz5d7wHI)
+
+### What's covered in the video:
+* **[00:00:11] System Audit:** A quick health check of the CtxNest system using Antigravity.
+* **[00:00:39] Obsidian Integration:** Clipping documentation from the web directly into your knowledge base.
+* **[00:01:08] Strategy Generation:** Using the MCP server to draft a technical strategy doc based on your current context.
+* **[00:01:37] Context Bundling:** Packaging your entire project context into a single XML block for an LLM session.
+
 ## Why CtxNest?
 
 Git is built for code; CtxNest is built for **context**. It gives you a **single global vault** for context across every project, **two-way sync** that pulls and merges collaborator changes via native git, **versioned snapshots** as a safety net for accidental wipes, and a **pay-as-you-go MCP surface** so agents fetch only what they need instead of preloading thousands of tokens per turn. Registering a project also makes it part of a global pool — agents can pull standards from any project to help with the current one.
