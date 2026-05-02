@@ -184,9 +184,9 @@ To update to the newest image:
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 ```
-### Option B — Glama Registry (Official MCP Distribution)
+### Option B — Official Docker Hub Image
 
-If you are using [Glama.ai](https://glama.ai/mcp/registry), you can use the official pre-built image from the Glama Registry:
+The fastest way to run CtxNest in production is using our official Docker Hub image. This is the same image used by the [Glama Registry](https://glama.ai/mcp/servers/safiyu/ctxnest).
 
 ```bash
 docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest
