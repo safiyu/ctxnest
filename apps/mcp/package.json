@@ -1,6 +1,6 @@
 {
   "name": "ctxnest-mcp",
-  "version": "5.3.3",
+  "version": "5.3.4",
   "description": "MCP server for CtxNest — 42 tools for context-window-aware agents (search, section-edit, batch ops, journaling, git versioning) backed by local SQLite/FTS5.",
   "keywords": [
     "mcp",

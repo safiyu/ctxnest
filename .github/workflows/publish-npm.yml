@@ -120,7 +120,7 @@ jobs:
   publish-glama:
     name: Notify Glama Registry
     runs-on: ubuntu-latest
-    needs: [publish-npm, publish-docker]
+    needs: [publish, publish-docker]
     if: success()
     steps:
       - name: Trigger Glama Refresh
