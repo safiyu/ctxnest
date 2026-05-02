@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listTags } from "@ctxnest/core";
+import { listTags } from "ctxnest-core";
 import { ensureDbInitialized } from "@/lib/db-init";
 
 export async function GET() {

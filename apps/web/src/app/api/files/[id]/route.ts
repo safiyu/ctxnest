@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, updateFile, deleteFile, getDatabase, addTags, removeTags, setFavorite, getTagsForFiles } from "@ctxnest/core";
+import { readFile, updateFile, deleteFile, getDatabase, addTags, removeTags, setFavorite, getTagsForFiles } from "ctxnest-core";
 import { ensureDbInitialized, DATA_DIR } from "@/lib/db-init";
 
 function parseId(raw: string): number | null {

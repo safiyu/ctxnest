@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { clipUrl, ClipError, type ClipErrorCode } from "@ctxnest/core";
+import { clipUrl, ClipError, type ClipErrorCode } from "ctxnest-core";
 import { ensureDbInitialized, DATA_DIR } from "@/lib/db-init";
 
 const STATUS_FOR_CODE: Record<ClipErrorCode, number> = {

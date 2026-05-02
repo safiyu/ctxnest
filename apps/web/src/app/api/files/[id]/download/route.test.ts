@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { GET } from "./route";
-import { createFile } from "@ctxnest/core";
+import { createFile } from "ctxnest-core";
 import { ensureDbInitialized } from "@/lib/db-init";
 
 describe("GET /api/files/[id]/download", () => {

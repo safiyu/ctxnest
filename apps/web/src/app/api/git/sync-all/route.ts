@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
-import { syncBackup, syncGlobalVault, listProjects } from "@ctxnest/core";
+import { syncBackup, syncGlobalVault, listProjects } from "ctxnest-core";
 import { broadcastSync } from "@/lib/websocket";
 
 export async function POST() {

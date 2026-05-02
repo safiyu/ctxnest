@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { discoverFiles } from "@ctxnest/core";
+import { discoverFiles } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 
 export async function POST(

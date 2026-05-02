@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureDbInitialized } from "@/lib/db-init";
-import { getDatabase } from "@ctxnest/core";
+import { getDatabase } from "ctxnest-core";
 
 export const dynamic = "force-dynamic";
 

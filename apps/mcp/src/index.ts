@@ -39,7 +39,7 @@ import {
   deleteFolder,
   moveFile,
   withLock,
-} from "@ctxnest/core";
+} from "ctxnest-core";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { statSync, openSync, readSync, closeSync, readFileSync, readdirSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";

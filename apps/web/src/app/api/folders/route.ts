@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createFolder, getDatabase, listProjectFolders } from "@ctxnest/core";
+import { createFolder, getDatabase, listProjectFolders } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 import { join } from "node:path";
 
@@ -108,7 +108,7 @@ export async function DELETE(req: NextRequest) {
   }
 
   try {
-    const { deleteFolder } = await import("@ctxnest/core");
+    const { deleteFolder } = await import("ctxnest-core");
 
     if (projectIdNum === null) {
       // KB folder — safe to delete from disk.

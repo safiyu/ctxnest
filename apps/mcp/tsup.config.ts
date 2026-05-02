@@ -13,7 +13,7 @@ export default defineConfig({
   sourcemap: false,
   clean: true,
   shims: false,
-  noExternal: ["@ctxnest/core"],
+  noExternal: ["ctxnest-core"],
   // Native + runtime-resolved deps. tsup will leave these as plain imports
   // so npm install resolves prebuilt binaries / platform-specific modules.
   external: [

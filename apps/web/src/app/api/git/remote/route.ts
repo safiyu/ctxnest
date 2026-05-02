@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
-import { getGlobalRemote, setGlobalRemote } from "@ctxnest/core";
+import { getGlobalRemote, setGlobalRemote } from "ctxnest-core";
 
 export async function GET() {
   ensureDbInitialized();

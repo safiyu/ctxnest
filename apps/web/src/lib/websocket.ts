@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
-import { createFileWatcher, type WatcherEvent } from "@ctxnest/core";
+import { createFileWatcher, type WatcherEvent } from "ctxnest-core";
 import type { SyncEvent } from "./sync-events";
 
 // globalThis-cached so Next.js module duplication doesn't split the

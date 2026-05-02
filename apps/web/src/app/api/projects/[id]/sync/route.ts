@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncBackup } from "@ctxnest/core";
+import { syncBackup } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 import { broadcastSync } from "@/lib/websocket";
 

@@ -17,9 +17,6 @@ importers:
 
   apps/mcp:
     dependencies:
-      '@ctxnest/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.29.0(zod@3.25.76)
@@ -29,6 +26,9 @@ importers:
       chokidar:
         specifier: ^4.0.0
         version: 4.0.3
+      ctxnest-core:
+        specifier: workspace:*
+        version: link:../../packages/core
       simple-git:
         specifier: ^3.27.0
         version: 3.36.0
@@ -48,9 +48,6 @@ importers:
 
   apps/web:
     dependencies:
-      '@ctxnest/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@tiptap/extension-link':
         specifier: ^2.11.0
         version: 2.27.2(@tiptap/core@2.27.2(@tiptap/pm@2.27.2))(@tiptap/pm@2.27.2)
@@ -84,6 +81,9 @@ importers:
       better-sqlite3:
         specifier: ^11.7.0
         version: 11.10.0
+      ctxnest-core:
+        specifier: workspace:*
+        version: link:../../packages/core
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1

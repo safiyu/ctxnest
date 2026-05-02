@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v6.0.0
+  CtxNest v6.1.0
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,7 +9,7 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's New in v6.0.0** — Search, Sync & Speed:
+> **What's New in v6.1.0** — Search, Sync & Speed:
 > - **Search Optimization** — Rewrote SQLite FTS5 logic with a precise tokenizer. Correctly handles technical identifiers and complex file paths.
 > - **Unified Distribution** — Perfectly synchronized releases across npm (`npx -y ctxnest-mcp`) and Docker Hub (`safiyu/ctxnest`).
 > - **Workflow Safety** — Added unsaved-edit guards, atomic file moves, and improved concurrency for high-speed agentic sessions.
@@ -269,7 +269,7 @@ ctxnest/
 │   ├── web/        # Next.js 15 UI (App Router, React 19, Tailwind)
 │   └── mcp/        # MCP stdio server for AI agents
 ├── packages/
-│   └── core/       # SQLite/FTS5, git engine, file watcher (@ctxnest/core)
+│   └── core/       # SQLite/FTS5, git engine, file watcher (ctxnest-core)
 ├── data/           # default runtime data (SQLite + global git vault + backups)
 ├── docker-compose.yml      # build from source
 ├── docker-compose.hub.yml  # pull from Docker Hub (no build)
@@ -278,7 +278,7 @@ ctxnest/
 └── turbo.json
 ```
 
-`apps/web` and `apps/mcp` both depend on `@ctxnest/core` via `workspace:*`. The core package must be built once before either app can resolve its imports — `pnpm build` handles this automatically via turbo's dependency graph.
+`apps/web` and `apps/mcp` both depend on `ctxnest-core` via `workspace:*`. The core package must be built once before either app can resolve its imports — `pnpm build` handles this automatically via turbo's dependency graph.
 
 ### Install & First Build
 
@@ -286,7 +286,7 @@ ctxnest/
 git clone <repository-url>
 cd ctxnest
 pnpm install                # installs every workspace package, builds better-sqlite3
-pnpm build                  # builds @ctxnest/core first, then apps/web and apps/mcp
+pnpm build                  # builds ctxnest-core first, then apps/web and apps/mcp
 ```
 
 `pnpm install` may take a few minutes on first run while `better-sqlite3` compiles. If you see a build error here, your toolchain is missing — see Prerequisites.
@@ -355,7 +355,7 @@ If `packages/core/src/db/migrations/` gained new `.sql` files, they run automati
 ### Troubleshooting
 
 - **`better-sqlite3` fails to build during `pnpm install`** — install the C/C++ toolchain (see Prerequisites), then `rm -rf node_modules && pnpm install`.
-- **`Cannot find module '@ctxnest/core'`** when starting the web app — you skipped the build step. Run `pnpm -C packages/core build` (or `pnpm build` from the root) once.
+- **`Cannot find module 'ctxnest-core'`** when starting the web app — you skipped the build step. Run `pnpm -C packages/core build` (or `pnpm build` from the root) once.
 - **`database is locked`** in dev — usually a leftover dev process holding the WAL handle. Stop all `pnpm dev` processes; if it persists, remove `data/ctxnest.db-shm` and `data/ctxnest.db-wal` and restart. The DB is cached on `globalThis` to survive HMR; first launches after a hard kill are the danger zone.
 - **WebSocket not connecting** — check that port 3001 is free (`lsof -i :3001` / `netstat -ano | findstr 3001`). The server binds to `127.0.0.1` by default. If your browser is on a different host, set `CTXNEST_WS_HOST=0.0.0.0` AND configure `CTXNEST_WS_ORIGINS` (origin allowlist) and/or `CTXNEST_WS_TOKEN`+`NEXT_PUBLIC_WS_TOKEN` (shared secret) — non-loopback connections are rejected by default to avoid leaking file paths on the LAN. See [Operations](#operations).
 - **Sync fails with "Configured global remote URL is not a valid git remote"** — only `https://`, `http://`, `ssh://`, `git://`, and scp-form (`user@host:path`) URLs are accepted. `file://` and credential helpers are rejected by design.

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listProjects, registerProject, discoverFiles } from "@ctxnest/core";
+import { listProjects, registerProject, discoverFiles } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { statSync, openSync, readSync, closeSync } from "node:fs";
-import { listFiles, createFile, getTagsForFiles, getDatabase } from "@ctxnest/core";
-import type { FileFilters } from "@ctxnest/core";
+import { listFiles, createFile, getTagsForFiles, getDatabase } from "ctxnest-core";
+import type { FileFilters } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 
 // Sample the head to detect ASCII-vs-multi-byte; pick bytes/4 or bytes/3.

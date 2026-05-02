@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { POST } from "./route";
-import { listFiles, readFile } from "@ctxnest/core";
+import { listFiles, readFile } from "ctxnest-core";
 
 function multipart(parts: Record<string, string | { filename: string; content: string; type?: string }[]>): Request {
   const fd = new FormData();

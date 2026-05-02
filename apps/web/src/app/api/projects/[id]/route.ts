@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDatabase, unregisterProject, isValidGitRemoteUrl, withLock } from "@ctxnest/core";
+import { getDatabase, unregisterProject, isValidGitRemoteUrl, withLock } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 import { existsSync, statSync } from "node:fs";
 import { isAbsolute, resolve, sep } from "node:path";

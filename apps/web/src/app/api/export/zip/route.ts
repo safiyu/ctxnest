@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import archiver from "archiver";
 import { Readable } from "node:stream";
-import { listFiles, readFile, getDatabase } from "@ctxnest/core";
+import { listFiles, readFile, getDatabase } from "ctxnest-core";
 import { ensureDbInitialized, DATA_DIR } from "@/lib/db-init";
 import { statSync } from "node:fs";
 import { relative, basename, join } from "node:path";

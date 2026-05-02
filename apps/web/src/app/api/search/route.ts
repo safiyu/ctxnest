@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { search } from "@ctxnest/core";
+import { search } from "ctxnest-core";
 import { ensureDbInitialized } from "@/lib/db-init";
 
 export async function GET(req: NextRequest) {

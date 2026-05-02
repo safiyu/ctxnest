@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "@ctxnest/core";
+import { readFile } from "ctxnest-core";
 import { ensureDbInitialized } from "@/lib/db-init";
 import { basename } from "node:path";
 

@@ -48,8 +48,8 @@ jobs:
           fi
           echo "Tag $GITHUB_REF_NAME matches package version $PKG"
 
-      - name: Build @ctxnest/core
-        # tsup's noExternal hook resolves @ctxnest/core via its `main`
+      - name: Build ctxnest-core
+        # tsup's noExternal hook resolves ctxnest-core via its `main`
         # (dist/index.js); pnpm install does not build workspace packages,
         # so we must build core before bundling mcp.
         run: pnpm -C packages/core build

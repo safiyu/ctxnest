@@ -14,7 +14,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   try {
-    const { closeDatabase } = await import("@ctxnest/core");
+    const { closeDatabase } = await import("ctxnest-core");
     closeDatabase();
   } catch {}
   if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });

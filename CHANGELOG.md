@@ -1,6 +1,7 @@
 # Changelog
 
-## 6.0.0 (2026-05-02)
+## 6.1.0 (2026-05-02)
+- **Architectural Alignment** — Standardized all workspace packages to a consistent `ctxnest-*` naming convention (`ctxnest-core`, `ctxnest-mcp`, `ctxnest-web`). This eliminates build-time mismatches and simplifies CI/CD filters.
 - **Search Optimization** — Rewrote SQLite FTS5 logic with a more precise tokenizer (`porter unicode61`). Search now correctly handles technical identifiers, hyphenated filenames, and complex file paths.
 - **Improved Distribution** — Docker images and npm packages are now guaranteed to be in sync with every release.
 - **Documentation Refresh** — Cleaned up README and setup instructions for better clarity.

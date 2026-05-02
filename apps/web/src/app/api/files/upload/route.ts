@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createFile, listFiles, slugify } from "@ctxnest/core";
+import { createFile, listFiles, slugify } from "ctxnest-core";
 import { ensureDbInitialized, DATA_DIR } from "@/lib/db-init";
 import { basename, extname, dirname } from "node:path";
 

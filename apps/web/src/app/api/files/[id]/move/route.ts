@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDatabase, moveFile } from "@ctxnest/core";
+import { getDatabase, moveFile } from "ctxnest-core";
 import { DATA_DIR, ensureDbInitialized } from "@/lib/db-init";
 import { isAbsolute, join, resolve, sep } from "node:path";
 

@@ -1,4 +1,4 @@
-import { createDatabase } from "@ctxnest/core";
+import { createDatabase } from "ctxnest-core";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";

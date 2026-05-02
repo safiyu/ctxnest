@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from "vitest";
 import { GET } from "./route";
-import { createFile, registerProject, getDatabase } from "@ctxnest/core";
+import { createFile, registerProject, getDatabase } from "ctxnest-core";
 import { ensureDbInitialized } from "@/lib/db-init";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
