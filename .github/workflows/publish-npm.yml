@@ -62,11 +62,19 @@ jobs:
 
       - name: Publish to npm
         run: |
-          # Create a clean .npmrc for OIDC
-          echo "//registry.npmjs.org/:_authToken=" > .npmrc
+          echo "=== Debug npm configuration ==="
+          npm config list
+          
+          echo "=== Cleaning environment ==="
+          # Remove any potential .npmrc files that could interfere with OIDC
+          rm -f .npmrc
+          rm -f ~/.npmrc
+          
+          # Force OIDC via environment variables
+          export NPM_CONFIG_PROVENANCE=true
+          
+          echo "=== Attempting Publish ==="
           npm publish ./apps/mcp --access public --provenance
-        env:
-          NPM_CONFIG_PROVENANCE: true
 
       - name: Extract release notes from CHANGELOG
         id: notes
