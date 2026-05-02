@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v5.3.1
+  CtxNest v5.3.2
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,13 +9,12 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's new in 5.2** — npm install + robustness:
-> - **`npx -y ctxnest-mcp`** — install the MCP server straight from npm, no Docker required for the MCP path. See [Install via npm](#install-via-npm-recommended-for-mcp-only-users).
-> - **Unsaved-edit guard** — clicking a folder, project, or file while editing now prompts before discarding in-progress edits.
-> - **Favorites stay fresh** — toggling a star or editing tags refreshes the Favorites view immediately.
-> - **Atomic move + symlink-safe folder scan + tighter API validation** — see [`CHANGELOG.md`](CHANGELOG.md) for the full set.
->
-> **Earlier in 5.x** — Favorites section, section-level edits (`read_section`/`update_file_section`), search excerpts with `<<<…>>>` markers, batch ops, journaling, `refresh_index`.
+> **What's New** — Automation, Search & Reliability:
+> - **CI/CD Automation** — Fully automated releases to npm and Docker Hub via OIDC (Trusted Publishing).
+> - **Search Optimization** — SQLite FTS5 now uses the `porter unicode61` tokenizer for precise matching of technical identifiers and hyphenated filenames.
+> - **npm-Powered MCP** — Install the MCP server straight from npm: `npx -y ctxnest-mcp`. No Docker required for the MCP path.
+> - **Robustness** — Unsaved-edit guards, immediate favorite/tag syncing, atomic file moves, and symlink-safe folder scanning.
+> - **Improved Discovery** — Every file-returning tool reports `est_tokens` and `size_bytes` for context-window budgeting.
 
 <p align="center">
   <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
