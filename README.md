@@ -37,7 +37,7 @@ A short walkthrough of knowledge vaulting, surgical section edits, and live MCP 
 - **1:37** — Bundling project context as a single XML block
 
 ## Demo Server
-**You can try out the mcp endpoints by visiting [glama](https://glama.ai/mcp/servers/safiyu/ctxnest)
+You can try out the MCP endpoints interactively by visiting the **[CtxNest page on Glama](https://glama.ai/mcp/servers/safiyu/ctxnest)**.
 
 ## Why CtxNest?
 
