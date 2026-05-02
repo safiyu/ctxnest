@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v5.0.0
+  CtxNest v5.1.0
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,7 +9,8 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's new in 5.0** — A much bigger MCP toolbox:
+> **What's new** — A much bigger MCP toolbox & UX improvements:
+> - **Favorites Section** — A dedicated global filter in the UI to quickly access all your starred files across the entire workspace.
 > - **Section-level edits** — agents can now read just one heading's body or surgically replace it, instead of pulling whole files. Big context-window win.
 > - **Search excerpts** — every search hit ships with a snippet around the match, so agents skip the "now read the file to see what matched" step.
 > - **Folders, batch ops, stats, and journaling** — agents can finally manage structure, create/delete in bulk, get a one-shot overview, and append timestamped journal entries without touching the web UI.
@@ -172,7 +173,7 @@ To pin a specific release instead of `latest`:
 # Edit docker-compose.hub.yml and change:
 #   image: safiyu/ctxnest:latest
 # to:
-#   image: safiyu/ctxnest:3.1.0
+#   image: safiyu/ctxnest:5.1.0
 docker compose -f docker-compose.hub.yml up -d
 ```
 
