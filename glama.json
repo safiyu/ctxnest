@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "ctxnest",
-  "version": "5.3.2",
+  "version": "5.3.3",
   "description": "High-performance centralized context engine for agentic workflows. Features surgical section edits, real-time token estimation, and a global git-backed knowledge vault for LLM agents.",
   "repository": "https://github.com/safiyu/ctxnest",
   "license": "Apache-2.0",
@@ -15,9 +15,8 @@
     "prompts": false
   },
   "installInstructions": {
-    "glama": "registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv",
-    "docker": "docker run -it -v /path/to/data:/app/data registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv",
-    "docker_hub": "docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest",
+    "glama": "safiyu/ctxnest:latest",
+    "docker": "docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest",
     "npm": "npx -y ctxnest-mcp"
   },
   "env": {
