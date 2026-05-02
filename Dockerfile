@@ -32,7 +32,7 @@ RUN pnpm build
 
 # Deploy MCP server with its production dependencies
 # This creates a standalone directory with its own node_modules
-RUN pnpm --filter @ctxnest/mcp deploy /app/mcp-deploy
+RUN pnpm --filter ctxnest-mcp deploy /app/mcp-deploy
 
 # Stage 2: Runner
 FROM node:20-slim AS runner
