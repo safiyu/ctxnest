@@ -20,9 +20,14 @@ CtxNest is a high-performance markdown context manager that bridges the gap betw
   <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
 </p>
 
-## Demo Walkthrough
+## Demo Walkthrough - A quick overview of some features. The possibilities are endless, but this will give you a good idea of what CtxNest can do.
 
-[![CtxNest Demo Video](https://img.youtube.com/vi/wq8Hz5d7wHI/maxresdefault.jpg)](https://www.youtube.com/watch?v=wq8Hz5d7wHI)
+### Focussed functions in this walkthrough:
+* *Knowledge Vaulting:* How to organize cross-project context.
+* *Surgical Edits:* Token-saving markdown section updates.
+* *Agentic Integration:* Real-world use with Antigravity and Claude.
+
+[![CtxNest Demo Video](apps/web/public/Snapshot_2.png)](https://www.youtube.com/watch?v=wq8Hz5d7wHI)
 
 ### What's covered in the video:
 * **[00:00:11] System Audit:** A quick health check of the CtxNest system using Antigravity.
