@@ -60,11 +60,8 @@ jobs:
       - name: Run smoke tests
         run: pnpm -C apps/mcp test
 
-      - name: Upgrade npm to v11
-        run: npm install -g npm@latest
- 
       - name: Publish to npm
-        run: npm publish ./apps/mcp --access public --provenance
+        run: npx -y npm@latest publish ./apps/mcp --access public --provenance
  
       - name: Extract release notes from CHANGELOG
         id: notes
