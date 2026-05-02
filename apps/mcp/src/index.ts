@@ -112,7 +112,7 @@ createDatabase(dbPath);
 
 const server = new McpServer({
   name: "ctxnest",
-  version: "5.1.0",
+  version: "5.2.0",
 });
 
 server.tool(
@@ -576,7 +576,7 @@ server.tool(
 
 server.tool(
   "search",
-  "Search files using full-text search. Each match is annotated inline with `tags` (string[]), `est_tokens`, `size_bytes`, plus a `match_excerpt` (snippet of the content around the matched terms, with hits wrapped in `<<<…>>>` markers) and a `title_highlight` (full title with the same markers). The excerpt removes the need for a follow-up `read_file` to see WHERE the match was.",
+  "Search files using full-text search. Each match is annotated inline with `tags` (string[]), `est_tokens`, `size_bytes`, plus a `match_excerpt` (snippet of the content around the matched terms, with hits wrapped in `<<<…>>>` markers) and a `title_highlight` (full title with the same markers). The excerpt removes the need for a follow-up `read_file` to see WHERE the match was. Note: FTS is tokenized — for browsing files by name or navigating the KB structure, prefer `project_map` (faster, no tokenization). Use `regex_search` when you need exact substring or identifier matching.",
   {
     query: z.string().describe("Search query"),
     project_id: z.number().nullable().optional().describe("Filter by project ID. Pass null to search ONLY Knowledge Base files."),

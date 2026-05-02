@@ -37,9 +37,16 @@ const StarIcon = ({ filled, className }: { filled: boolean; className?: string }
 interface ContentPaneProps {
   fileId: number | null;
   onDelete: (id: number) => Promise<void>;
+  // Notify parent after favorite/tag mutations so views derived from the
+  // global file list (e.g. the Favorites section) see fresh state instead
+  // of waiting for an unrelated watcher event.
+  onChanged?: () => void;
+  // Lets the parent guard navigation handlers against discarding
+  // in-progress edits (window.confirm before clearing selectedFileId).
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
+export function ContentPane({ fileId, onDelete, onChanged, onDirtyChange }: ContentPaneProps) {
   const [file, setFile] = useState<File | null>(null);
   const [editing, setEditing] = useState(false);
   const [viewHistory, setViewHistory] = useState(false);
@@ -57,6 +64,13 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
   // happened mid-request and decline to apply stale results.
   const fileIdRef = useRef<number | null>(fileId);
   useEffect(() => { fileIdRef.current = file?.id ?? null; }, [file?.id]);
+
+  // Bubble dirty state up so the parent can confirm before navigation.
+  useEffect(() => {
+    const dirty = editing && file != null && editContent !== file.content;
+    onDirtyChange?.(dirty);
+  }, [editing, editContent, file?.content, onDirtyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
 
   useEffect(() => {
     if (fileId === null) {
@@ -299,6 +313,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
                       body: JSON.stringify({ favorite: next }),
                     });
                     if (!res.ok) throw new Error("PATCH failed");
+                    onChanged?.();
                   } catch (e) {
                     // Roll back optimistic toggle.
                     setFile({ ...file, favorite: !next });
@@ -351,6 +366,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
                       body: JSON.stringify({ tags: next }),
                     });
                     if (!res.ok) throw new Error("PATCH failed");
+                    onChanged?.();
                   } catch (e) {
                     setFile({ ...file, tags: file.tags });
                     console.error("Failed to remove tag:", e);
@@ -385,6 +401,7 @@ export function ContentPane({ fileId, onDelete }: ContentPaneProps) {
                   body: JSON.stringify({ tags: next }),
                 });
                 if (!res.ok) throw new Error("PATCH failed");
+                onChanged?.();
               } catch (err) {
                 setFile({ ...file, tags: file.tags });
                 console.error("Failed to add tag:", err);

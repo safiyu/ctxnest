@@ -1,29 +1,68 @@
 {
-  "name": "@ctxnest/mcp",
-  "version": "5.1.0",
-  "private": true,
+  "name": "ctxnest-mcp",
+  "version": "5.2.0",
+  "description": "MCP server for CtxNest — 42 tools for context-window-aware agents (search, section-edit, batch ops, journaling, git versioning) backed by local SQLite/FTS5.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ctxnest",
+    "context-engine",
+    "knowledge-base",
+    "agentic",
+    "claude",
+    "cursor",
+    "rag"
+  ],
+  "homepage": "https://github.com/safiyu/ctxnest#readme",
+  "bugs": {
+    "url": "https://github.com/safiyu/ctxnest/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safiyu/ctxnest.git",
+    "directory": "apps/mcp"
+  },
+  "license": "Apache-2.0",
+  "author": "safiyu",
+  "private": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "type": "module",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "bin": {
     "ctxnest-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
+    "build:npm": "tsup",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "smoke": "node test-tools.mjs",
-    "test": "node test-tools.mjs"
+    "test": "node test-tools.mjs",
+    "prepublishOnly": "pnpm run build:npm"
   },
   "dependencies": {
     "@ctxnest/core": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "better-sqlite3": "^11.7.0",
+    "chokidar": "^4.0.0",
+    "simple-git": "^3.27.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
     "typescript": "^5.7.0"
   }
 }

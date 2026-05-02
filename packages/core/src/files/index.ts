@@ -3,7 +3,7 @@
  * Handles CRUD operations for .md files with SQLite indexing
  */
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync, existsSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, renameSync, mkdirSync, readdirSync, statSync, lstatSync, existsSync, rmSync } from "node:fs";
 import { join, dirname, resolve, sep, isAbsolute } from "node:path";
 import { getDatabase } from "../db/index.js";
 import { commitFile } from "../git/index.js";
@@ -20,12 +20,15 @@ export function listProjectFolders(projectPath: string): string[] {
     const entries = readdirSync(dir);
     for (const entry of entries) {
       if (entry.startsWith(".") || entry === "node_modules") continue;
-      
+
       const fullPath = join(dir, entry);
       const relPath = currentRel ? join(currentRel, entry) : entry;
-      
+
       try {
-        if (statSync(fullPath).isDirectory()) {
+        // lstatSync (not statSync) so a symlink loop doesn't recurse forever.
+        const lst = lstatSync(fullPath);
+        if (lst.isSymbolicLink()) continue;
+        if (lst.isDirectory()) {
           folders.push(relPath);
           scan(fullPath, relPath);
         }
@@ -424,10 +427,25 @@ export function moveFile(id: number, newPath: string): FileRecord {
   }
 
   mkdirSync(dirname(newPath), { recursive: true });
-  renameSync(fileRecord.path, newPath);
+  const oldPath = fileRecord.path;
+  renameSync(oldPath, newPath);
 
+  // If the DB UPDATE fails (UNIQUE conflict, etc.) we'd be left with the
+  // file at newPath but the row pointing at oldPath — in the web app the
+  // watcher would then unlink the row (losing tags/favorites). Roll the
+  // disk rename back so the system stays consistent.
   const updateStmt = db.prepare("UPDATE files SET path = ?, updated_at = datetime('now') WHERE id = ?");
-  updateStmt.run(newPath, id);
+  try {
+    updateStmt.run(newPath, id);
+  } catch (e) {
+    try { renameSync(newPath, oldPath); } catch (rollbackErr) {
+      throw new Error(
+        `moveFile failed and rollback also failed; disk and DB are out of sync. ` +
+        `update error: ${(e as any)?.message ?? e}; rollback error: ${(rollbackErr as any)?.message ?? rollbackErr}`
+      );
+    }
+    throw e;
+  }
 
   const updatedRecord = db.prepare("SELECT * FROM files WHERE id = ?").get(id) as FileRecord;
   return updatedRecord;

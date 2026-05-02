@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v5.1.0
+  CtxNest v5.2.0
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,13 +9,13 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's new** — A much bigger MCP toolbox & UX improvements:
-> - **Favorites Section** — A dedicated global filter in the UI to quickly access all your starred files across the entire workspace.
-> - **Section-level edits** — agents can now read just one heading's body or surgically replace it, instead of pulling whole files. Big context-window win.
-> - **Search excerpts** — every search hit ships with a snippet around the match, so agents skip the "now read the file to see what matched" step.
-> - **Folders, batch ops, stats, and journaling** — agents can finally manage structure, create/delete in bulk, get a one-shot overview, and append timestamped journal entries without touching the web UI.
-> - **`refresh_index`** — fixes drift when an editor or sync writes a file behind CtxNest's back.
-> See [`CHANGELOG.md`](CHANGELOG.md) for details.
+> **What's new in 5.2** — npm install + robustness:
+> - **`npx -y ctxnest-mcp`** — install the MCP server straight from npm, no Docker required for the MCP path. See [Install via npm](#install-via-npm-recommended-for-mcp-only-users).
+> - **Unsaved-edit guard** — clicking a folder, project, or file while editing now prompts before discarding in-progress edits.
+> - **Favorites stay fresh** — toggling a star or editing tags refreshes the Favorites view immediately.
+> - **Atomic move + symlink-safe folder scan + tighter API validation** — see [`CHANGELOG.md`](CHANGELOG.md) for the full set.
+>
+> **Earlier in 5.x** — Favorites section, section-level edits (`read_section`/`update_file_section`), search excerpts with `<<<…>>>` markers, batch ops, journaling, `refresh_index`.
 
 <p align="center">
   <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
@@ -375,6 +375,32 @@ The MCP server is a **stdio** transport (`StdioServerTransport`). The host AI to
 - **`CTXNEST_DB_PATH`** (optional) — defaults to `$CTXNEST_DATA_DIR/ctxnest.db`.
 
 The web UI and the MCP server can run against the same database simultaneously. SQLite WAL mode handles the concurrent reads, and the MCP server uses the same migration system, so first launch order doesn't matter.
+
+### Install via npm (recommended for MCP-only users)
+
+If you only need the MCP server (no web UI), install via npm — no Docker required:
+
+```json
+{
+  "mcpServers": {
+    "ctxnest": {
+      "command": "npx",
+      "args": ["-y", "ctxnest-mcp"],
+      "env": {
+        "CTXNEST_DATA_DIR": "/absolute/path/to/your/data"
+      }
+    }
+  }
+}
+```
+
+`CTXNEST_DATA_DIR` must be an absolute path. The directory is created on first run. `npx -y ctxnest-mcp` downloads the package on first use and caches it; subsequent invocations are instant.
+
+If you also want the web UI, run the Docker image alongside the npx install — both read the same `CTXNEST_DATA_DIR`:
+
+```bash
+docker run -d -p 3000:3000 -v /absolute/path/to/your/data:/app/data safiyu/ctxnest:latest
+```
 
 ### Claude Code
 

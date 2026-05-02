@@ -63,7 +63,7 @@ VALUES (1, 'Default User', NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS fts_index USING fts5(
   title,
   content,
-  tokenize='porter'
+  tokenize='porter unicode61'
 );
 
 -- Indexes for performance

@@ -92,14 +92,16 @@ export async function POST(req: NextRequest) {
 
   let tags: string[] | undefined;
   if (tagsRaw) {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(tagsRaw);
-      if (Array.isArray(parsed) && parsed.every((t) => typeof t === "string")) {
-        tags = parsed;
-      }
+      parsed = JSON.parse(tagsRaw);
     } catch {
       return NextResponse.json({ error: "tags must be a JSON array of strings" }, { status: 400 });
     }
+    if (!Array.isArray(parsed) || !parsed.every((t) => typeof t === "string")) {
+      return NextResponse.json({ error: "tags must be a JSON array of strings" }, { status: 400 });
+    }
+    tags = parsed as string[];
   }
 
   const destination = projectId ? "project" : "knowledge";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { TopBar } from "@/components/layout/top-bar";
 import { ThreePane } from "@/components/layout/three-pane";
 import { FolderTree } from "@/components/folder-tree/folder-tree";
@@ -121,17 +121,38 @@ export default function HomePage() {
       // dance reset ContentPane's editing state on every watcher event,
       // silently dropping unsaved edits whenever any .md under data/
       // changed (including unrelated files in other projects).
-      refreshFiles();
       refreshAllFiles();
     },
-    [refreshFiles, refreshAllFiles]
+    [refreshAllFiles]
   );
 
   useWebSocket(handleWebSocketEvent);
 
   const isPhone = useMediaQuery("(max-width: 767px)");
 
+  // ContentPane reports unsaved-edit state up via onDirtyChange. Selection
+  // handlers below check this before discarding the active file so an
+  // unintended click can't silently throw away in-progress edits.
+  const isDirtyRef = useRef(false);
+  const confirmDiscardIfDirty = (): boolean => {
+    if (!isDirtyRef.current) return true;
+    return window.confirm("You have unsaved changes in the open file. Discard them?");
+  };
+
+  // Catches tab close / hard-refresh while editing.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirtyRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
   const handleSelectProject = (projectId: number) => {
+    if (!confirmDiscardIfDirty()) return;
     setSelectedProjectId(projectId);
     setSelectedSection("projects");
     setSelectedFileId(null);
@@ -141,6 +162,7 @@ export default function HomePage() {
   };
 
   const handleSelectKnowledge = () => {
+    if (!confirmDiscardIfDirty()) return;
     setSelectedSection("knowledge");
     setSelectedProjectId(null);
     setSelectedFileId(null);
@@ -150,6 +172,7 @@ export default function HomePage() {
   };
 
   const handleSelectFavorites = () => {
+    if (!confirmDiscardIfDirty()) return;
     setSelectedSection("favorites");
     setSelectedProjectId(null);
     setSelectedFileId(null);
@@ -161,6 +184,7 @@ export default function HomePage() {
   // Atomically switches to KB section AND selects a specific folder
   // (avoids the race where handleSelectKnowledge clears selectedFolder)
   const handleSelectKnowledgeFolder = (folderPath: string | null) => {
+    if (!confirmDiscardIfDirty()) return;
     setSelectedSection("knowledge");
     setSelectedProjectId(null);
     setSelectedFileId(null);
@@ -170,6 +194,7 @@ export default function HomePage() {
   };
 
   const handleSelectFile = (fileId: number, fromTree?: boolean) => {
+    if (fileId !== selectedFileId && !confirmDiscardIfDirty()) return;
     setSelectedFileId(fileId);
     // KB tree is always visible; a file click with no active section
     // (or when clicking a tree node while in favorites)
@@ -179,10 +204,12 @@ export default function HomePage() {
       if (file?.project_id) {
         setSelectedSection("projects");
         setSelectedProjectId(file.project_id);
+        setSelectedFolder(null);
         sessionStorage.setItem("selectedSection", "projects");
         sessionStorage.setItem("selectedProjectId", String(file.project_id));
       } else if (file) {
         setSelectedSection("knowledge");
+        setSelectedFolder(null);
         sessionStorage.setItem("selectedSection", "knowledge");
         sessionStorage.removeItem("selectedProjectId");
       }
@@ -190,6 +217,7 @@ export default function HomePage() {
   };
 
   const handleSelectFolder = (folderPath: string | null) => {
+    if (!confirmDiscardIfDirty()) return;
     setSelectedFolder(folderPath);
     setSelectedFileId(null);
   };
@@ -255,6 +283,7 @@ export default function HomePage() {
   };
 
   const handleSearchSelect = (result: { id: number; path: string; project_id: number | null }) => {
+    if (result.id !== selectedFileId && !confirmDiscardIfDirty()) return;
     // Switch the surrounding navigation context to the file's owning
     // section/project so the breadcrumb, file list, and folder tree all
     // line up with the content the user is about to view.
@@ -311,7 +340,6 @@ export default function HomePage() {
         }),
       });
       if (response.ok) {
-        refreshFiles();
         refreshAllFiles();
         setNewFileOpen(false);
       }
@@ -326,7 +354,6 @@ export default function HomePage() {
         method: "DELETE",
       });
       if (response.ok) {
-        refreshFiles();
         refreshAllFiles();
         setFolderRefreshKey((k) => k + 1);
         setSelectedFileId(null);
@@ -348,13 +375,16 @@ export default function HomePage() {
       });
       if (response.ok) {
         setNewFolderOpen(false);
-        // Navigate to the correct section so the folder appears
+        // Navigate to the correct section AND into the new folder so the
+        // user sees what they just created instead of landing at the root.
         if (!targetProjectId || targetProjectId === 0) {
           setSelectedSection("knowledge");
           setSelectedProjectId(null);
-          setSelectedFolder(null);
+          setSelectedFolder(name);
           sessionStorage.setItem("selectedSection", "knowledge");
           sessionStorage.removeItem("selectedProjectId");
+        } else {
+          setSelectedFolder(name);
         }
         // Bump the key to trigger folder re-fetch without full page reload
         setFolderRefreshKey((k) => k + 1);
@@ -512,12 +542,12 @@ export default function HomePage() {
             onUnregisterProject={() => setUnregisterConfirmOpen(true)}
             onDeleteFolder={handleDeleteFolder}
             projects={projects}
-            onUploaded={() => { refreshFiles(); refreshAllFiles(); }}
+            onUploaded={refreshAllFiles}
             onRefresh={handleRefreshProject}
             onNewFile={() => setNewFileOpen(true)}
           />
         }
-        right={<ContentPane fileId={selectedFileId} onDelete={handleDeleteFile} />}
+        right={<ContentPane fileId={selectedFileId} onDelete={handleDeleteFile} onChanged={refreshAllFiles} onDirtyChange={(d) => { isDirtyRef.current = d; }} />}
       />
       <StatusBar
         globalRemoteUrl={globalRemoteUrl}

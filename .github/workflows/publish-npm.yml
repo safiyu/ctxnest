@@ -1,0 +1,92 @@
+name: Publish ctxnest-mcp to npm
+
+on:
+  push:
+    tags:
+      # Repo convention is bare semver (e.g. 5.2.0), not v-prefixed.
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write       # gh release create
+  id-token: write       # npm trusted publishing OIDC
+
+# Serialize publishes — npm rejects duplicate versions, but a clean queue
+# beats two workflows racing on the same release.
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node 20 + npm registry
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "pnpm"
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag matches package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./apps/mcp/package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match apps/mcp/package.json version $PKG"
+            exit 1
+          fi
+          echo "Tag $GITHUB_REF_NAME matches package version $PKG"
+
+      - name: Build @ctxnest/core
+        # tsup's noExternal hook resolves @ctxnest/core via its `main`
+        # (dist/index.js); pnpm install does not build workspace packages,
+        # so we must build core before bundling mcp.
+        run: pnpm -C packages/core build
+
+      - name: Build npm bundle
+        run: pnpm -C apps/mcp build:npm
+
+      - name: Run smoke tests
+        run: pnpm -C apps/mcp test
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+        working-directory: apps/mcp
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          # Extract everything from "## $TAG (...)" up to the next "## " heading.
+          awk -v tag="$TAG" '
+            $0 ~ "^## "tag" "{flag=1; next}
+            flag && /^## /{flag=0}
+            flag {print}
+          ' CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "::warning::No CHANGELOG section found for $TAG; release will have empty notes"
+            echo "Release notes pending — see CHANGELOG.md" > /tmp/release-notes.md
+          fi
+          echo "path=/tmp/release-notes.md" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "${{ steps.notes.outputs.path }}"

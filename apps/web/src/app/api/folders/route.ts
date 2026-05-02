@@ -19,9 +19,11 @@ export async function POST(req: NextRequest) {
   if (
     projectId !== undefined &&
     projectId !== null &&
-    (typeof projectId !== "number" || !Number.isInteger(projectId) || projectId < 0)
+    (typeof projectId !== "number" || !Number.isInteger(projectId) || projectId <= 0)
   ) {
-    return NextResponse.json({ error: "projectId must be a non-negative integer" }, { status: 400 });
+    // Reject 0 explicitly — SQLite ids start at 1, and the `if (projectId)`
+    // truthy check below would otherwise route 0 silently to the KB branch.
+    return NextResponse.json({ error: "projectId must be a positive integer (omit or send null for the knowledge base)" }, { status: 400 });
   }
   // Reject obvious traversal before passing to filesystem code; createFolder
   // calls assertPathInside as a backstop.

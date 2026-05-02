@@ -1,5 +1,20 @@
 # Changelog
 
+## 5.2.0 (2026-05-02)
+
+### Distribution
+- **npm package** — `ctxnest-mcp` is now published to npm. Install via `npx -y ctxnest-mcp` in any MCP-compatible client (Claude Desktop, Cursor, Codex, Continue, Gemini, Antigravity) — no Docker required for the MCP path. Existing Docker and Glama-registry installs are unchanged.
+- **Tag-driven CI publish** — the `publish-npm.yml` workflow publishes on every bare-semver (`X.Y.Z`) tag push using npm trusted publishing (OIDC, no stored token).
+
+### Robustness
+- **Unsaved-edit guard** — clicking a folder, project, section, or another file while editing now prompts before discarding in-progress edits. Tab close / hard refresh during an unsaved edit triggers the browser's leave-this-page warning.
+- **Favorites stay fresh** — toggling a star or editing tags from the right pane now refreshes the global file list immediately, so the Favorites section reflects the change without waiting for a watcher event.
+- **Folder tree resilience** — `listProjectFolders` switched to `lstatSync` and skips symlinks, so a stray symlink loop in a project no longer blows the stack.
+- **Atomic move** — `moveFile` rolls the disk rename back if the DB update fails, keeping disk and index in sync (previously a UPDATE failure left the file at the new path with the row pointing at the old one).
+- **Selection-state cleanup** — favorites→KB transitions clear stale folder filters; create-folder navigates the user into the new folder instead of the section root.
+- **API hardening** — `/api/files/upload` now rejects malformed `tags` payloads with 400 instead of silently ignoring them; `/api/folders` POST rejects `projectId === 0` instead of routing it to the knowledge base.
+- **Fewer redundant fetches** — collapsed double `refresh()` calls across the websocket handler and create/delete/upload flows.
+
 ## 5.1.0 (2026-05-02)
 
 ### Favorites & UX
