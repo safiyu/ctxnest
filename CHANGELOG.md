@@ -1,9 +1,9 @@
 # Changelog
 
-## 5.3.4 (2026-05-02)
-
-### Fixed
-- CI: Refined npm publish workflow to support OIDC/Trusted Publishing.
+## 6.0.0 (2026-05-02)
+- **Search Optimization** — Rewrote SQLite FTS5 logic with a more precise tokenizer (`porter unicode61`). Search now correctly handles technical identifiers, hyphenated filenames, and complex file paths.
+- **Improved Distribution** — Docker images and npm packages are now guaranteed to be in sync with every release.
+- **Documentation Refresh** — Cleaned up README and setup instructions for better clarity.
 
 ## 5.2.0 (2026-05-02)
 

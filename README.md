@@ -1,6 +1,6 @@
 <h1 align="center">
   <img src="apps/web/public/logo.png" alt="CtxNest Logo" width="180"><br>
-  CtxNest v5.3.4
+  CtxNest v6.0.0
 </h1>
 <p align="center"><b>The Centralized Context Engine for Agentic Workflows</b></p>
 
@@ -9,12 +9,11 @@
 CtxNest is a high-performance markdown context manager that bridges the gap between your local file system and your AI coding assistants. It features a premium "Obsidian-meets-Terminal" UI and a built-in **Model Context Protocol (MCP)** server to provide seamless, versioned knowledge to tools like **Claude Code**, **Gemini**, and **Cursor**.
 
 > [!NOTE]
-> **What's New** — Automation, Search & Reliability:
-> - **CI/CD Automation** — Fully automated releases to npm and Docker Hub via OIDC (Trusted Publishing).
-> - **Search Optimization** — SQLite FTS5 now uses the `porter unicode61` tokenizer for precise matching of technical identifiers and hyphenated filenames.
-> - **npm-Powered MCP** — Install the MCP server straight from npm: `npx -y ctxnest-mcp`. No Docker required for the MCP path.
-> - **Robustness** — Unsaved-edit guards, immediate favorite/tag syncing, atomic file moves, and symlink-safe folder scanning.
-> - **Improved Discovery** — Every file-returning tool reports `est_tokens` and `size_bytes` for context-window budgeting.
+> **What's New in v6.0.0** — Search, Sync & Speed:
+> - **Search Optimization** — Rewrote SQLite FTS5 logic with a precise tokenizer. Correctly handles technical identifiers and complex file paths.
+> - **Unified Distribution** — Perfectly synchronized releases across npm (`npx -y ctxnest-mcp`) and Docker Hub (`safiyu/ctxnest`).
+> - **Workflow Safety** — Added unsaved-edit guards, atomic file moves, and improved concurrency for high-speed agentic sessions.
+> - **Smarter Context** — Every tool now reports estimated tokens and size, allowing agents to budget your context window surgically.
 
 <p align="center">
   <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
