@@ -61,21 +61,12 @@ jobs:
         run: pnpm -C apps/mcp test
 
       - name: Publish to npm
-        run: |
-          echo "=== Debug npm configuration ==="
-          npm config list
-          
-          echo "=== Cleaning environment ==="
-          # Remove any potential .npmrc files that could interfere with OIDC
-          rm -f .npmrc
-          rm -f ~/.npmrc
-          
-          # Force OIDC via environment variables
-          export NPM_CONFIG_PROVENANCE=true
-          
-          echo "=== Attempting Publish ==="
-          npm publish ./apps/mcp --access public --provenance
-
+        uses: JS-DevTools/npm-publish@v3
+        with:
+          package: ./apps/mcp/package.json
+          access: public
+          provenance: true
+ 
       - name: Extract release notes from CHANGELOG
         id: notes
         run: |

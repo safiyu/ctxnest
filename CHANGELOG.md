@@ -1,6 +1,6 @@
 # Changelog
 
-## 5.2.5 (2026-05-02)
+## 5.2.6 (2026-05-02)
 
 ### Fixed
 - CI: Refined npm publish workflow to support OIDC/Trusted Publishing.
