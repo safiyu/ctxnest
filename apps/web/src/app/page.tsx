@@ -33,7 +33,7 @@ export default function HomePage() {
   const [deletingFolder, setDeletingFolder] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [targetProjectId, setTargetProjectId] = useState<number | null>(null);
-  const [selectedSection, setSelectedSection] = useState<"projects" | "knowledge" | null>(null);
+  const [selectedSection, setSelectedSection] = useState<"projects" | "knowledge" | "favorites" | null>(null);
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortBy>("updated_at");
@@ -41,7 +41,7 @@ export default function HomePage() {
 
   // Restore navigation state from sessionStorage after mount (avoids SSR hydration mismatch)
   useEffect(() => {
-    const storedSection = sessionStorage.getItem("selectedSection") as "projects" | "knowledge" | null;
+    const storedSection = sessionStorage.getItem("selectedSection") as "projects" | "knowledge" | "favorites" | null;
     const storedProjectId = sessionStorage.getItem("selectedProjectId");
     if (storedSection) setSelectedSection(storedSection);
     if (storedProjectId) setSelectedProjectId(Number(storedProjectId));
@@ -96,6 +96,9 @@ export default function HomePage() {
   const { files: allFiles, loading: filesLoading, refresh: refreshAllFiles } = useFiles({});
   const refreshFiles = refreshAllFiles;
   const files = useMemo(() => {
+    if (selectedSection === "favorites") {
+      return allFiles.filter((f) => f.favorite);
+    }
     if (selectedSection === "projects" && selectedProjectId !== null) {
       return allFiles.filter((f) => f.project_id === selectedProjectId);
     }
@@ -143,6 +146,15 @@ export default function HomePage() {
     setSelectedFileId(null);
     setSelectedFolder(null);
     sessionStorage.setItem("selectedSection", "knowledge");
+    sessionStorage.removeItem("selectedProjectId");
+  };
+
+  const handleSelectFavorites = () => {
+    setSelectedSection("favorites");
+    setSelectedProjectId(null);
+    setSelectedFileId(null);
+    setSelectedFolder(null);
+    sessionStorage.setItem("selectedSection", "favorites");
     sessionStorage.removeItem("selectedProjectId");
   };
 
@@ -393,7 +405,9 @@ export default function HomePage() {
 
   const breadcrumbSegments: BreadcrumbSegment[] = useMemo(() => {
     const segs: BreadcrumbSegment[] = [];
-    if (selectedSection === "knowledge") {
+    if (selectedSection === "favorites") {
+      segs.push({ label: "Favorites", onClick: handleSelectFavorites });
+    } else if (selectedSection === "knowledge") {
       segs.push({ label: "Knowledge", onClick: handleSelectKnowledge });
     } else if (selectedSection === "projects" && selectedProject) {
       segs.push({ label: selectedProject.name, onClick: () => handleSelectProject(selectedProject.id) });
@@ -471,6 +485,7 @@ export default function HomePage() {
             knowledgeBasePath={knowledgeBasePath}
             onSelectProject={handleSelectProject}
             onSelectKnowledge={handleSelectKnowledge}
+            onSelectFavorites={handleSelectFavorites}
             onSelectKnowledgeFolder={handleSelectKnowledgeFolder}
             onSelectFolder={handleSelectFolder}
             onSelectFile={handleSelectFile}

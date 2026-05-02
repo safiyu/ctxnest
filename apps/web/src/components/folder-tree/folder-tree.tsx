@@ -21,7 +21,7 @@ interface FolderTreeProps {
   projectFiles: ProjectFile[];
   knowledgeFiles: ProjectFile[];
   selectedProjectId: number | null;
-  selectedSection: "projects" | "knowledge" | null;
+  selectedSection: "projects" | "knowledge" | "favorites" | null;
   selectedFolder: string | null;
   projectFolders: string[];
   knowledgeFolders: string[];
@@ -29,6 +29,7 @@ interface FolderTreeProps {
   knowledgeBasePath: string;
   onSelectProject: (projectId: number) => void;
   onSelectKnowledge: () => void;
+  onSelectFavorites: () => void;
   onSelectKnowledgeFolder: (folderPath: string | null) => void;
   onSelectFolder: (folderPath: string | null) => void;
   onSelectFile: (fileId: number) => void;
@@ -118,6 +119,7 @@ export function FolderTree({
   knowledgeBasePath,
   onSelectProject,
   onSelectKnowledge,
+  onSelectFavorites,
   onSelectKnowledgeFolder,
   onSelectFolder,
   onSelectFile,
@@ -175,6 +177,22 @@ export function FolderTree({
               <p className="text-xs font-medium">No projects yet</p>
             </div>
           )}
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between px-2 pt-2 pb-1">
+          <button
+            onClick={onSelectFavorites}
+            className={`text-[12px] uppercase tracking-wider transition-colors ${
+              selectedSection === "favorites"
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+            aria-label="Select favorites"
+          >
+            Favorites
+          </button>
         </div>
       </div>
 

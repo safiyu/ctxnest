@@ -1,5 +1,11 @@
 # Changelog
 
+## 5.1.0 (2026-05-02)
+
+### Favorites & UX
+- **Favorites Section:** Added a dedicated "Favorites" section to the left-hand folder tree (right above Knowledge Base). This new view acts as a global filter that displays all starred files across your entire workspace (projects and knowledge base alike).
+- **Navigation:** Seamless breadcrumb and selection state updates for the new Favorites context.
+
 ## 5.0.0 (2026-05-01)
 
 ### A Bigger MCP Toolbox (13 → 42 tools)
