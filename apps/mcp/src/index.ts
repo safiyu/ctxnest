@@ -38,6 +38,7 @@ import {
   createFolder,
   deleteFolder,
   moveFile,
+  withLock,
 } from "@ctxnest/core";
 import { isAbsolute, join, resolve, sep } from "node:path";
 import { statSync, openSync, readSync, closeSync, readFileSync, readdirSync, existsSync } from "node:fs";
@@ -1915,19 +1916,20 @@ server.tool(
       const timeStr = `${pad(ts.getHours())}:${pad(ts.getMinutes())}:${pad(ts.getSeconds())}`;
       const entry = `\n\n## ${timeStr}\n\n${text.trimEnd()}\n`;
 
-      const existing = getDatabase()
-        .prepare("SELECT id FROM files WHERE path = ?")
-        .get(journalPath) as { id: number } | undefined;
-
-      let result;
-      if (existing) {
-        const current = readFile(existing.id);
-        result = await updateFile(existing.id, current.content + entry, dataDir);
-        // updateFile preserves tags; only add new ones the file doesn't have.
-        if (tags && tags.length > 0) addTags(existing.id, tags);
-      } else {
+      // Serialize per journal-file so concurrent appends can't lose entries.
+      const result = await withLock(`journal:${journalPath}`, async () => {
+        const existing = getDatabase()
+          .prepare("SELECT id FROM files WHERE path = ?")
+          .get(journalPath) as { id: number } | undefined;
+        if (existing) {
+          const current = readFile(existing.id);
+          const updated = await updateFile(existing.id, current.content + entry, dataDir);
+          // updateFile preserves tags; only add new ones the file doesn't have.
+          if (tags && tags.length > 0) addTags(existing.id, tags);
+          return updated;
+        }
         const initial = `# Journal — ${dateStr}${entry}`;
-        result = await createFile({
+        return await createFile({
           title: dateStr,
           content: initial,
           destination: "knowledge",
@@ -1935,7 +1937,7 @@ server.tool(
           tags: tags ?? ["journal"],
           dataDir,
         });
-      }
+      });
 
       return {
         content: [

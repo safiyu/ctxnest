@@ -15,7 +15,16 @@ export async function POST() {
     // Cap each project so an unreachable remote can't hang the whole batch.
     const PER_PROJECT_TIMEOUT_MS = Number(process.env.CTXNEST_SYNC_TIMEOUT_MS ?? 60_000);
 
+    // A timed-out syncBackup keeps running and holds the per-dataDir git
+    // lock; subsequent projects would queue behind it and time out the
+    // same way. Stop the batch instead of cascading N timeouts.
+    let lockStuck = false;
+
     for (const project of projects) {
+      if (lockStuck) {
+        errors.push(`Project ${project.name}: skipped (prior sync timed out and is still holding the git lock)`);
+        continue;
+      }
       try {
         const sync = syncBackup(project.id, DATA_DIR, (stage) => {
           broadcastSync({ type: "sync:stage", projectId: project.id, at: Date.now(), stage: `${project.name}: ${stage}` });
@@ -35,20 +44,17 @@ export async function POST() {
           totalBackedUp += backedUp.length;
         } finally {
           if (timedOut) {
-            // Promise.race doesn't cancel the underlying syncBackup; it
-            // keeps running and HOLDS the per-dataDir git lock, so every
-            // queued project below will block on it. Warn loudly so users
-            // understand subsequent failures are cascading from this hang.
+            lockStuck = true;
             console.warn(
               `[SyncAll] Project ${project.name} (id=${project.id}) timed out; ` +
-                `the underlying syncBackup is still running and will continue to hold the git lock. ` +
-                `Subsequent projects in this batch may stall behind it.`
+                `underlying syncBackup still running and holding the git lock. ` +
+                `Skipping remaining projects.`
             );
             broadcastSync({
               type: "sync:error",
               projectId: project.id,
               at: Date.now(),
-              message: `${project.name}: timeout — sync still running in background, may block remaining projects`,
+              message: `${project.name}: timeout — remaining projects skipped`,
             });
           }
         }
@@ -59,10 +65,11 @@ export async function POST() {
     }
 
     // Always run a global-vault sync at the end so KB-only commits go
-    // upstream even when the user has zero projects (or when they have
-    // projects but the per-project pull/push didn't include some
-    // KB-only changes — defensive and idempotent).
-    try {
+    // upstream even when the user has zero projects. Skip if a prior
+    // timeout left the git lock stuck.
+    if (lockStuck) {
+      errors.push("Knowledge Base: skipped (prior sync timed out and is still holding the git lock)");
+    } else try {
       const vaultSync = syncGlobalVault(DATA_DIR, (stage) => {
         broadcastSync({ type: "sync:stage", projectId: null, at: Date.now(), stage: `Knowledge Base: ${stage}` });
       });

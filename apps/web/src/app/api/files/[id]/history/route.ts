@@ -8,8 +8,12 @@ export async function GET(
 ) {
   ensureDbInitialized();
   const { id } = await params;
+  const n = Number(id);
+  if (!Number.isInteger(n) || n <= 0) {
+    return NextResponse.json({ error: `Invalid id: ${id}` }, { status: 400 });
+  }
   try {
-    const file = readFile(parseInt(id, 10));
+    const file = readFile(n);
     if (!file || !file.path) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }

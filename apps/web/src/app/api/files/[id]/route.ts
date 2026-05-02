@@ -75,32 +75,34 @@ export async function PATCH(
   const exists = db.prepare("SELECT id FROM files WHERE id = ?").get(n);
   if (!exists) return NextResponse.json({ error: "File not found" }, { status: 404 });
 
-  if (body.favorite !== undefined) {
-    if (typeof body.favorite !== "boolean") {
-      return NextResponse.json({ error: "favorite must be boolean" }, { status: 400 });
-    }
-    setFavorite(n, body.favorite);
+  if (body.favorite !== undefined && typeof body.favorite !== "boolean") {
+    return NextResponse.json({ error: "favorite must be boolean" }, { status: 400 });
+  }
+  if (body.tags !== undefined && (!Array.isArray(body.tags) || !body.tags.every((t: unknown) => typeof t === "string"))) {
+    return NextResponse.json({ error: "tags must be string[]" }, { status: 400 });
   }
 
-  if (body.tags !== undefined) {
-    if (!Array.isArray(body.tags) || !body.tags.every((t: unknown) => typeof t === "string")) {
-      return NextResponse.json({ error: "tags must be string[]" }, { status: 400 });
+  // Atomic so a constraint failure can't half-apply favorite + tags.
+  db.transaction(() => {
+    if (body.favorite !== undefined) {
+      setFavorite(n, body.favorite);
     }
-    // Replace tags: compute current, diff, apply.
-    const currentMap = getTagsForFiles([n]);
-    const current = currentMap.get(n) ?? [];
-    const desired = body.tags as string[];
-    const toAdd = desired.filter((t) => !current.includes(t));
-    const toRemoveNames = current.filter((t) => !desired.includes(t));
-    if (toAdd.length > 0) addTags(n, toAdd);
-    if (toRemoveNames.length > 0) {
-      // removeTags expects tag IDs, not names; resolve.
-      const idRows = db
-        .prepare(`SELECT id FROM tags WHERE name IN (${toRemoveNames.map(() => "?").join(",")})`)
-        .all(...toRemoveNames) as { id: number }[];
-      removeTags(n, idRows.map((r) => r.id));
+
+    if (body.tags !== undefined) {
+      const currentMap = getTagsForFiles([n]);
+      const current = currentMap.get(n) ?? [];
+      const desired = body.tags as string[];
+      const toAdd = desired.filter((t) => !current.includes(t));
+      const toRemoveNames = current.filter((t) => !desired.includes(t));
+      if (toAdd.length > 0) addTags(n, toAdd);
+      if (toRemoveNames.length > 0) {
+        const idRows = db
+          .prepare(`SELECT id FROM tags WHERE name IN (${toRemoveNames.map(() => "?").join(",")})`)
+          .all(...toRemoveNames) as { id: number }[];
+        removeTags(n, idRows.map((r) => r.id));
+      }
     }
-  }
+  })();
 
   const updated = readFile(n);
   const tags = getTagsForFiles([n]).get(n) ?? [];

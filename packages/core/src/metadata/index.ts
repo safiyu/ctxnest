@@ -250,8 +250,9 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
   const foundPaths = new Set<string>();
 
   // Get all existing files for this project in the DB
-  const existingFiles = db.prepare("SELECT path FROM files WHERE project_id = ?").all(projectId) as { path: string }[];
+  const existingFiles = db.prepare("SELECT id, path FROM files WHERE project_id = ?").all(projectId) as { id: number; path: string }[];
   const existingPaths = new Set(existingFiles.map(f => f.path));
+  const existingPathToId = new Map(existingFiles.map(f => [f.path, f.id] as const));
 
   // Cap size to keep huge files from blowing up memory and the FTS index.
   const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MiB
@@ -303,8 +304,7 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
         foundPaths.add(fullPath);
 
         try {
-          const existing = db.prepare("SELECT id FROM files WHERE path = ?").get(fullPath) as { id: number } | undefined;
-          if (existing) continue;
+          if (existingPaths.has(fullPath)) continue;
 
           const content = readFileSync(fullPath, "utf8");
           const contentHash = computeHash(content);
@@ -345,10 +345,10 @@ export function discoverFiles(projectId: number, dataDir: string): FileRecord[] 
 
     db.transaction(() => {
       for (const path of missingPaths) {
-        const file = db.prepare("SELECT id FROM files WHERE path = ?").get(path) as { id: number } | undefined;
-        if (file) {
-          deleteFtsStmt.run(file.id);
-          deleteFileStmt.run(file.id);
+        const fileId = existingPathToId.get(path);
+        if (fileId !== undefined) {
+          deleteFtsStmt.run(fileId);
+          deleteFileStmt.run(fileId);
         }
       }
     })();

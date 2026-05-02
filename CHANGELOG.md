@@ -18,6 +18,7 @@
 - Fixed a `syncBackup` deadlock when a project's path equals the data dir.
 - Extended the file-watcher denylist (`.next`, `.venv`, `dist`, build/cache dirs) so they no longer pollute the index.
 - Sync-all timeouts now log loudly and broadcast an error so cascading stalls aren't silent.
+- Stability fixes: cross-platform path handling (Windows separator), atomic favorite/tag updates, journal-append concurrency lock, race-safe folder fetches, consistent file-id validation across routes, restore-on-failure for global remote URL, and quieter middle-pane state recovery after unregistering a project.
 
 ### Tests
 - New MCP smoke harness exercises every tool against a temp data dir; wired into `pnpm test`. **43/43 passing.**

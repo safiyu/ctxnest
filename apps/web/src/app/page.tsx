@@ -159,6 +159,21 @@ export default function HomePage() {
 
   const handleSelectFile = (fileId: number) => {
     setSelectedFileId(fileId);
+    // KB tree is always visible; a file click with no active section
+    // would otherwise strand the middle pane on "No Selection".
+    if (!selectedSection) {
+      const file = allFiles.find((f) => f.id === fileId);
+      if (file?.project_id) {
+        setSelectedSection("projects");
+        setSelectedProjectId(file.project_id);
+        sessionStorage.setItem("selectedSection", "projects");
+        sessionStorage.setItem("selectedProjectId", String(file.project_id));
+      } else if (file) {
+        setSelectedSection("knowledge");
+        sessionStorage.setItem("selectedSection", "knowledge");
+        sessionStorage.removeItem("selectedProjectId");
+      }
+    }
   };
 
   const handleSelectFolder = (folderPath: string | null) => {
@@ -376,22 +391,18 @@ export default function HomePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const breadcrumbSegments: BreadcrumbSegment[] = (() => {
+  const breadcrumbSegments: BreadcrumbSegment[] = useMemo(() => {
     const segs: BreadcrumbSegment[] = [];
-    // Section root
     if (selectedSection === "knowledge") {
       segs.push({ label: "Knowledge", onClick: handleSelectKnowledge });
     } else if (selectedSection === "projects" && selectedProject) {
       segs.push({ label: selectedProject.name, onClick: () => handleSelectProject(selectedProject.id) });
     }
 
-    // Resolve the selected file (may be from either pool)
     const file = selectedFileId
       ? files.find((x) => x.id === selectedFileId) || allFiles.find((x) => x.id === selectedFileId)
       : null;
 
-    // Compute the section base path so we can derive the file's folder chain
-    // even when the user clicked it from the project root (no selectedFolder).
     const sectionBase =
       selectedSection === "projects"
         ? selectedProject?.path ?? null
@@ -401,17 +412,15 @@ export default function HomePage() {
     if (file && sectionBase && file.path?.startsWith(sectionBase)) {
       const rel = file.path.slice(sectionBase.length).replace(/^\/+/, "");
       const parts = rel.split("/").filter(Boolean);
-      folderSegments = parts.slice(0, -1); // drop the filename
+      folderSegments = parts.slice(0, -1);
     } else if (selectedFolder) {
-      // No file selected, but a folder is — render its segments.
       folderSegments = selectedFolder.split("/").filter(Boolean);
     }
 
     folderSegments.forEach((part) => segs.push({ label: part }));
-
     if (file) segs.push({ label: file.title });
     return segs;
-  })();
+  }, [selectedSection, selectedProject, selectedFileId, files, allFiles, knowledgeBasePath, selectedFolder]);
 
   const railItems = projects.map((p) => ({
     id: `p-${p.id}`,

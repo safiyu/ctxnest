@@ -20,20 +20,20 @@ CtxNest is a high-performance markdown context manager that bridges the gap betw
   <img src="apps/web/public/screenshot.png" alt="CtxNest UI Screenshot" width="100%">
 </p>
 
-## Demo Walkthrough - A quick overview of some features. The possibilities are endless, but this will give you a good idea of what CtxNest can do.
+## Demo
 
-### Focussed functions in this walkthrough:
-* *Knowledge Vaulting:* How to organize cross-project context.
-* *Surgical Edits:* Token-saving markdown section updates.
-* *Agentic Integration:* Real-world use with Antigravity and Claude.
+A short walkthrough of knowledge vaulting, surgical section edits, and live MCP integration with Antigravity and Claude.
 
-[![CtxNest Demo Video](apps/web/public/Snapshot_2.png)](https://www.youtube.com/watch?v=wq8Hz5d7wHI)
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=wq8Hz5d7wHI">
+    <img src="apps/web/public/Snapshot_2.png" alt="CtxNest demo video" width="80%">
+  </a>
+</p>
 
-### What's covered in the video:
-* **[00:00:11] System Audit:** A quick health check of the CtxNest system using Antigravity.
-* **[00:00:39] Obsidian Integration:** Clipping documentation from the web directly into your knowledge base.
-* **[00:01:08] Strategy Generation:** Using the MCP server to draft a technical strategy doc based on your current context.
-* **[00:01:37] Context Bundling:** Packaging your entire project context into a single XML block for an LLM session.
+- **0:11** — System audit with Antigravity
+- **0:39** — Clipping web documentation into the knowledge base
+- **1:08** — Drafting a strategy doc from project context via MCP
+- **1:37** — Bundling project context as a single XML block
 
 ## Why CtxNest?
 

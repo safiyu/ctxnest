@@ -6,7 +6,7 @@
 import { createHash } from "node:crypto";
 import simpleGit, { SimpleGit, LogResult } from "simple-git";
 import { readFileSync, writeFileSync, copyFileSync, mkdirSync, existsSync, rmSync, readdirSync, statSync, unlinkSync, renameSync } from "node:fs";
-import { join, relative, dirname, isAbsolute, resolve } from "node:path";
+import { join, relative, dirname, isAbsolute, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import { getDatabase } from "../db/index.js";
 import { withLock } from "../util/safety.js";
@@ -214,8 +214,13 @@ export async function restoreVersion(
     try {
       await git.add(relativePath);
       await git.commit(`Restore version ${commitHash.slice(0, 7)}`, [relativePath], { "--no-verify": null, "--no-gpg-sign": null });
-    } catch {
-      // No-op if content already matches HEAD.
+    } catch (e: any) {
+      // Swallow only the no-op case (restored content matches HEAD).
+      const msg = String(e?.message ?? e);
+      const isNoop = /nothing to commit|no changes added to commit|nothing added to commit/i.test(msg);
+      if (!isNoop) {
+        throw new Error(`Restored on disk but git commit failed: ${msg}`);
+      }
     }
 
     return contentForFts;
@@ -323,12 +328,29 @@ export async function setGlobalRemote(dataDir: string, url: string): Promise<voi
       await git.addConfig("tag.gpgsign", "false");
     }
 
+    // Snapshot origin so we can restore it if addRemote fails partway
+    // through — otherwise the user is left with no remote configured.
+    let previousOriginUrl: string | null = null;
+    try {
+      const remotes = await git.getRemotes(true);
+      previousOriginUrl = remotes.find((r) => r.name === "origin")?.refs.fetch || null;
+    } catch {}
+
+    let removed = false;
     try {
       await git.removeRemote("origin");
-    } catch (e) {}
+      removed = true;
+    } catch {}
 
     if (url) {
-      await git.addRemote("origin", url);
+      try {
+        await git.addRemote("origin", url);
+      } catch (e) {
+        if (removed && previousOriginUrl) {
+          try { await git.addRemote("origin", previousOriginUrl); } catch {}
+        }
+        throw e;
+      }
     }
   });
 }
@@ -553,7 +575,7 @@ async function _syncBackupLocked(
         const localAbsolutePath = join(project.path, relativePath);
         // Defense-in-depth: never write outside the project dir.
         const projectResolved = resolve(project.path);
-        if (resolve(localAbsolutePath) !== projectResolved && !resolve(localAbsolutePath).startsWith(projectResolved + "/")) {
+        if (resolve(localAbsolutePath) !== projectResolved && !resolve(localAbsolutePath).startsWith(projectResolved + sep)) {
           continue;
         }
         mkdirSync(dirname(localAbsolutePath), { recursive: true });
@@ -631,7 +653,7 @@ async function _syncBackupLocked(
         if (insideBackup.startsWith("..") || isAbsolute(insideBackup)) continue;
         const localAbsolutePath = join(project.path, insideBackup);
         const resolvedLocal = resolve(localAbsolutePath);
-        if (resolvedLocal !== projectResolved && !resolvedLocal.startsWith(projectResolved + "/")) {
+        if (resolvedLocal !== projectResolved && !resolvedLocal.startsWith(projectResolved + sep)) {
           continue;
         }
         try {

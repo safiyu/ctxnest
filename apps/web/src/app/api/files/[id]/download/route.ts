@@ -10,8 +10,8 @@ export async function GET(
   ensureDbInitialized();
   const { id } = await params;
   const n = Number(id);
-  if (!Number.isInteger(n) || n < 0) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  if (!Number.isInteger(n) || n <= 0) {
+    return NextResponse.json({ error: `Invalid id: ${id}` }, { status: 400 });
   }
   let file;
   try {
