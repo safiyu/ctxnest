@@ -1,6 +1,46 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "name": "ctxnest",
+  "version": "5.0.0",
+  "description": "High-performance centralized context engine for agentic workflows. Features surgical section edits, real-time token estimation, and a global git-backed knowledge vault for LLM agents.",
+  "repository": "https://github.com/safiyu/ctxnest",
+  "license": "Apache-2.0",
   "maintainers": [
     "safiyu"
+  ],
+  "runtime": "node",
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": false
+  },
+  "installInstructions": {
+    "docker": "docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest",
+    "npm": "npx @safiyu/ctxnest-mcp"
+  },
+  "env": {
+    "CTXNEST_DATA_DIR": {
+      "description": "Absolute path to the directory where your Knowledge Base and SQLite database are stored.",
+      "required": true
+    },
+    "CTXNEST_PROJECT_TOKEN_WARN": {
+      "description": "Token count threshold above which the server issues budget warnings.",
+      "default": "100000",
+      "required": false
+    },
+    "CTXNEST_WS_HOST": {
+      "description": "The host the WebSocket server binds to.",
+      "default": "127.0.0.1",
+      "required": false
+    }
+  },
+  "keywords": [
+    "context-manager",
+    "mcp-server",
+    "llm-tools",
+    "agentic-workflows",
+    "knowledge-base",
+    "local-first",
+    "rag"
   ]
 }
