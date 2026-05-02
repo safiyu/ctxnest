@@ -61,7 +61,7 @@ jobs:
         run: pnpm -C apps/mcp test
 
       - name: Publish to npm
-        run: npm publish --access public --provenance
+        run: pnpm publish --no-git-checks --access public
         working-directory: apps/mcp
 
       - name: Extract release notes from CHANGELOG
