@@ -169,11 +169,12 @@ export default function HomePage() {
     sessionStorage.removeItem("selectedProjectId");
   };
 
-  const handleSelectFile = (fileId: number) => {
+  const handleSelectFile = (fileId: number, fromTree?: boolean) => {
     setSelectedFileId(fileId);
     // KB tree is always visible; a file click with no active section
-    // would otherwise strand the middle pane on "No Selection".
-    if (!selectedSection) {
+    // (or when clicking a tree node while in favorites)
+    // would otherwise strand the middle pane on "No Selection" or "Favorites".
+    if (!selectedSection || (fromTree && selectedSection === "favorites")) {
       const file = allFiles.find((f) => f.id === fileId);
       if (file?.project_id) {
         setSelectedSection("projects");
@@ -488,7 +489,7 @@ export default function HomePage() {
             onSelectFavorites={handleSelectFavorites}
             onSelectKnowledgeFolder={handleSelectKnowledgeFolder}
             onSelectFolder={handleSelectFolder}
-            onSelectFile={handleSelectFile}
+            onSelectFile={(id) => handleSelectFile(id, true)}
             onCreateFolder={(id) => {
               setTargetProjectId(id);
               setNewFolderOpen(true);

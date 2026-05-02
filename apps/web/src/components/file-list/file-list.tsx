@@ -36,7 +36,7 @@ interface FileListProps {
   onSortChange: (sortBy: SortBy) => void;
   selectedFolder: string | null;
   selectedProject: Project | null;
-  selectedSection?: "projects" | "knowledge" | null;
+  selectedSection?: "projects" | "knowledge" | "favorites" | null;
   basePath?: string | null;
   onSync: () => void;
   onUnregisterProject?: () => void;
@@ -137,6 +137,9 @@ export function FileList({
       } else {
         result = [];
       }
+    } else if (selectedSection === "favorites") {
+      // files is already pre-filtered by page.tsx, and favorites ignore folders
+      result = [...files];
     } else if (selectedSection === "knowledge") {
       result = result.filter((f) => !f.project_id);
       if (basePath) {
@@ -293,9 +296,9 @@ export function FileList({
             onChange={(e) => onSortChange(e.target.value as SortBy)}
             className="bg-transparent text-[11px] uppercase tracking-wider focus:outline-none cursor-pointer"
           >
-            <option value="updated_at">updated</option>
-            <option value="created_at">created</option>
-            <option value="name">name</option>
+            <option value="updated_at" className="bg-[var(--bg-primary)] text-[var(--text-primary)]">updated</option>
+            <option value="created_at" className="bg-[var(--bg-primary)] text-[var(--text-primary)]">created</option>
+            <option value="name" className="bg-[var(--bg-primary)] text-[var(--text-primary)]">name</option>
           </select>
         </div>
       </div>
