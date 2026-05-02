@@ -15,7 +15,9 @@
     "prompts": false
   },
   "installInstructions": {
-    "docker": "docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest",
+    "glama": "registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv",
+    "docker": "docker run -it -v /path/to/data:/app/data registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv",
+    "docker_hub": "docker run -it -v /path/to/data:/app/data safiyu/ctxnest:latest",
     "npm": "npx @safiyu/ctxnest-mcp"
   },
   "env": {

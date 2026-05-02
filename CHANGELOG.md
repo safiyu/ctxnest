@@ -11,6 +11,9 @@
 - **Range + regex reads** — `read_file_lines` for stack-trace-style line ranges; `grep_in_file` and `regex_search` catch what FTS5's tokenizer misses (URLs, identifiers, hyphenated terms).
 - **Capture & recovery** — `journal_append` for timestamped daily notes, `diff_against_disk` and `refresh_index` for spotting and fixing drift after external edits or sync merges.
 
+### Official Distribution
+- **Glama Registry** — CtxNest is now officially published to the [Glama MCP Registry](https://glama.ai/mcp/registry) as `registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv`.
+
 ### Robustness
 - Fixed a `syncBackup` deadlock when a project's path equals the data dir.
 - Extended the file-watcher denylist (`.next`, `.venv`, `dist`, build/cache dirs) so they no longer pollute the index.

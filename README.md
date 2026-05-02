@@ -182,8 +182,28 @@ To update to the newest image:
 docker compose -f docker-compose.hub.yml pull
 docker compose -f docker-compose.hub.yml up -d
 ```
+### Option B — Glama Registry (Official MCP Distribution)
 
-### Option B — Build from source
+If you are using [Glama.ai](https://glama.ai/mcp/registry), you can use the official pre-built image from the Glama Registry:
+
+```bash
+docker run -it -v /path/to/data:/app/data registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv
+```
+
+To use it as an MCP server in your `mcpServers.json`:
+
+```json
+{
+  "mcpServers": {
+    "ctxnest": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-v", "/path/to/data:/app/data", "registry.glama.ai/mcp-ntrhtsg0bk:n6ifz00shv"]
+    }
+  }
+}
+```
+
+### Option C — Build from source
 
 Clone the repo and build the image locally (useful if you want to modify the source):
 
