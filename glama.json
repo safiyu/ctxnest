@@ -11,5 +11,11 @@
   "build": [
     "npm ci",
     "npm run build"
+  ],
+  "command": [
+    "mcp-proxy",
+    "--",
+    "node",
+    "dist/index.js"
   ]
 }
