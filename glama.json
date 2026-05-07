@@ -9,8 +9,7 @@
     "safiyu"
   ],
   "build": [
-    "apt-get update && apt-get install -y build-essential",
-    "npm install -g pnpm@10",
-    "pnpm install --frozen-lockfile"
+    "npm ci",
+    "npm run build"
   ]
 }
