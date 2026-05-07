@@ -7,7 +7,7 @@ import {
 
 const server = new Server(
   {
-    name: "ctxtest",
+    name: "ctxnest",
     version: "1.0.0",
   },
   {
