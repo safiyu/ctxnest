@@ -1,6 +1,6 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
-  "name": "ctxtest",
+  "name": "ctxnest",
   "version": "1.0.0",
   "description": "The test context engine and command engine for AI coding agents.",
   "repository": "https://github.com/safiyu/ctxnest",
