@@ -1,4 +1,4 @@
-# ctxtest
+# ctxtest (ctxnest)
 
 This is a simple "Hello World" MCP (Model Context Protocol) server created for testing purposes.
 

@@ -4,6 +4,10 @@
   "description": "Hello World MCP Server",
   "author": "Safiyu",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safiyu/ctxnest.git"
+  },
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
